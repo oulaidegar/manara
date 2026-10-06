@@ -10,8 +10,14 @@
 
 import type * as analytics from "../analytics.js";
 import type * as connectors_accounts from "../connectors/accounts.js";
+import type * as connectors_linkedin_index from "../connectors/linkedin/index.js";
+import type * as connectors_meta_index from "../connectors/meta/index.js";
+import type * as connectors_shared_types from "../connectors/shared/types.js";
 import type * as connectors_sync from "../connectors/sync.js";
+import type * as connectors_tiktok_index from "../connectors/tiktok/index.js";
+import type * as connectors_youtube_index from "../connectors/youtube/index.js";
 import type * as content from "../content.js";
+import type * as crons from "../crons.js";
 import type * as impact from "../impact.js";
 import type * as imports from "../imports.js";
 import type * as initiatives from "../initiatives.js";
@@ -37,8 +43,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   "connectors/accounts": typeof connectors_accounts;
+  "connectors/linkedin/index": typeof connectors_linkedin_index;
+  "connectors/meta/index": typeof connectors_meta_index;
+  "connectors/shared/types": typeof connectors_shared_types;
   "connectors/sync": typeof connectors_sync;
+  "connectors/tiktok/index": typeof connectors_tiktok_index;
+  "connectors/youtube/index": typeof connectors_youtube_index;
   content: typeof content;
+  crons: typeof crons;
   impact: typeof impact;
   imports: typeof imports;
   initiatives: typeof initiatives;
