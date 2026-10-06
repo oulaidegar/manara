@@ -121,4 +121,22 @@ describe("CSV Import Utilities (Section 21)", () => {
     expect(invalidRows).toHaveLength(0);
     expect(validRows.length).toBe(rows.length);
   });
+
+  it("verifies sample_radar_data.csv parses and validates with zero errors", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("sample_radar_data.csv", "utf8");
+    const { headers, rows } = parseCsv(content);
+    expect(headers).toHaveLength(16);
+    expect(rows).toHaveLength(10);
+
+    const mapping = suggestColumnMapping(headers);
+    expect(Object.keys(mapping).length).toBe(16);
+
+    const { validRows, invalidRows, summary } = validateAndMapRows(rows, mapping);
+    expect(invalidRows).toHaveLength(0);
+    expect(summary.invalid).toBe(0);
+    expect(summary.valid).toBe(10);
+    expect(validRows[0].data.title).toContain("Procurement Discrepancies");
+    expect(validRows[0].data.impressions).toBe(145000);
+  });
 });
