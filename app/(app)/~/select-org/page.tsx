@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -9,22 +9,32 @@ import { Building2, Plus, ArrowRight, Loader2 } from "lucide-react";
 
 export default function SelectOrgPage() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { isAuthenticated, isLoading: isConvexAuthLoading } = useConvexAuth();
   const router = useRouter();
 
   // Sync user to Convex
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const [userSynced, setUserSynced] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isClerkLoaded && clerkUser) {
+    if (isClerkLoaded && clerkUser && isAuthenticated && !userSynced) {
       getOrCreateUser({
         clerkUserId: clerkUser.id,
         name: clerkUser.fullName ?? clerkUser.firstName ?? "User",
         email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
         avatarUrl: clerkUser.imageUrl ?? undefined,
-      }).then(() => setUserSynced(true));
+      })
+        .then(() => {
+          setUserSynced(true);
+          setSyncError(null);
+        })
+        .catch((err) => {
+          console.error("Failed to sync user to Convex:", err);
+          setSyncError(err instanceof Error ? err.message : "Authentication error");
+        });
     }
-  }, [isClerkLoaded, clerkUser, getOrCreateUser]);
+  }, [isClerkLoaded, clerkUser, isAuthenticated, userSynced, getOrCreateUser]);
 
   const organizations = useQuery(
     api.organizations.queries.listUserOrganizations,
@@ -67,7 +77,27 @@ export default function SelectOrgPage() {
       .replace(/^-|-$/g, "");
   };
 
-  if (!isClerkLoaded || !userSynced) {
+  if (syncError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <div className="w-full max-w-md rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20">
+          <h2 className="text-lg font-semibold text-red-700 dark:text-red-400">Account Synchronization Error</h2>
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">{syncError}</p>
+          <button
+            onClick={() => {
+              setSyncError(null);
+              setUserSynced(false);
+            }}
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90 transition-opacity"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isClerkLoaded || isConvexAuthLoading || !userSynced) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[var(--muted-foreground)]" />
