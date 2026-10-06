@@ -23,6 +23,8 @@ import { ImpactSummaryCards } from "@/components/impact/impact-summary-cards";
 import { OutcomeDetailDrawer } from "@/components/impact/outcome-detail-drawer";
 import { RecordOutcomeModal } from "@/components/impact/record-outcome-modal";
 import { ActorRegistryModal } from "@/components/impact/actor-registry-modal";
+import { ImpactFunnelChart, VerificationFunnelItem } from "@/components/charts/impact-funnel-chart";
+import { BarChart3 } from "lucide-react";
 
 type VerificationStatus = "candidate" | "documented" | "corroborated" | "verified" | "rejected";
 
@@ -36,6 +38,7 @@ export default function ImpactPage() {
   const [selectedOutcomeId, setSelectedOutcomeId] = useState<Id<"outcomes"> | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showActorModal, setShowActorModal] = useState(false);
+  const [showFunnelChart, setShowFunnelChart] = useState(true);
 
   const rawOutcomes = useQuery(api.impact.listOutcomes, {
     organizationId,
@@ -47,6 +50,28 @@ export default function ImpactPage() {
 
   const canCreate = userRole !== "viewer";
   const canVerify = userRole === "owner" || userRole === "admin" || userRole === "analyst";
+
+  // Compute funnel verification counts
+  const funnelData = useMemo<VerificationFunnelItem[]>(() => {
+    if (!rawOutcomes) return [];
+    const counts: Record<string, number> = {
+      candidate: 0,
+      documented: 0,
+      corroborated: 0,
+      verified: 0,
+    };
+    for (const o of rawOutcomes) {
+      if (counts[o.verificationStatus] !== undefined) {
+        counts[o.verificationStatus]++;
+      }
+    }
+    return [
+      { status: "candidate", count: counts.candidate },
+      { status: "documented", count: counts.documented },
+      { status: "corroborated", count: counts.corroborated },
+      { status: "verified", count: counts.verified },
+    ];
+  }, [rawOutcomes]);
 
   // Filter outcomes by search query
   const filteredOutcomes = useMemo(() => {
@@ -162,6 +187,28 @@ export default function ImpactPage() {
 
       {/* Impact Summary KPI Cards */}
       <ImpactSummaryCards organizationId={organizationId} />
+
+      {/* Verification Pipeline Funnel Visualization */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-5 space-y-3 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">
+              Outcome Verification Pipeline (Evidence Ladder)
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFunnelChart(!showFunnelChart)}
+            className="text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+          >
+            {showFunnelChart ? "Hide Visualization" : "Show Visualization"}
+          </button>
+        </div>
+        {showFunnelChart && (
+          <ImpactFunnelChart data={funnelData} height={220} />
+        )}
+      </div>
 
       {/* Filter & Pipeline Controls */}
       <div className="space-y-3">

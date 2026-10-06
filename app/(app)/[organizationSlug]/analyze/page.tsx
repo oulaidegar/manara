@@ -31,6 +31,8 @@ import Link from "next/link";
 import { TimeSeriesTrendChart } from "@/components/charts/time-series-trend-chart";
 import { PlatformComparisonChart } from "@/components/charts/platform-comparison-chart";
 import { FormatEfficiencyChart } from "@/components/charts/format-efficiency-chart";
+import { ImpactSankeyChart } from "@/components/charts/impact-sankey-chart";
+import { PlatformDonutChart } from "@/components/charts/platform-donut-chart";
 import {
   ContentDetailModal,
   DetailedContentItem,
@@ -61,7 +63,7 @@ export default function AnalyzePage() {
 
   // Visualization States
   const [timeSeriesVolume, setTimeSeriesVolume] = useState<"impressions" | "reach" | "views">("impressions");
-  const [activeVizTab, setActiveVizTab] = useState<"trend" | "breakdown" | "practices">("trend");
+  const [activeVizTab, setActiveVizTab] = useState<"trend" | "breakdown" | "sankey" | "practices">("trend");
 
   // Table Sorting & Pagination
   const [sortField, setSortField] = useState<SortField>("publishedAt");
@@ -408,6 +410,18 @@ export default function AnalyzePage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setActiveVizTab("sankey")}
+                  className={`text-sm font-semibold pb-2 border-b-2 transition-colors flex items-center gap-1.5 ${
+                    activeVizTab === "sankey"
+                      ? "border-[var(--primary)] text-[var(--foreground)]"
+                      : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Impact Flow (Sankey)</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setActiveVizTab("practices")}
                   className={`text-sm font-semibold pb-2 border-b-2 transition-colors flex items-center gap-1.5 ${
                     activeVizTab === "practices"
@@ -486,16 +500,29 @@ export default function AnalyzePage() {
 
             {/* TAB 2: Channel & Format Efficiency Breakdown */}
             {activeVizTab === "breakdown" && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Platform Chart */}
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 space-y-3">
-                  <div>
-                    <h3 className="text-sm font-semibold text-[var(--foreground)]">Channel Exposure Comparison</h3>
-                    <p className="text-xs text-[var(--muted-foreground)]">
-                      Total impressions and unique individual reach across platforms.
-                    </p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Platform Bar Chart */}
+                  <div className="lg:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--foreground)]">Channel Exposure Comparison</h3>
+                      <p className="text-xs text-[var(--muted-foreground)]">
+                        Total impressions and unique individual reach across platforms.
+                      </p>
+                    </div>
+                    <PlatformComparisonChart data={analyzeData.platformBreakdown} height={280} />
                   </div>
-                  <PlatformComparisonChart data={analyzeData.platformBreakdown} height={280} />
+
+                  {/* Platform Donut Chart */}
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[var(--foreground)]">Channel Reach Share</h3>
+                      <p className="text-xs text-[var(--muted-foreground)]">
+                        Normalized share of unique audience by publishing network.
+                      </p>
+                    </div>
+                    <PlatformDonutChart data={analyzeData.platformBreakdown} height={260} />
+                  </div>
                 </div>
 
                 {/* Format Efficiency Chart */}
@@ -511,7 +538,14 @@ export default function AnalyzePage() {
               </div>
             )}
 
-            {/* TAB 3: Strategic Communications Practices & Hypotheses */}
+            {/* TAB 3: Impact Flow Sankey Diagram */}
+            {activeVizTab === "sankey" && (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
+                <ImpactSankeyChart height={440} />
+              </div>
+            )}
+
+            {/* TAB 4: Strategic Communications Practices & Hypotheses */}
             {activeVizTab === "practices" && (
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-6 shadow-2xs">
                 <LearningWorkspace />

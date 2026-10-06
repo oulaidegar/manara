@@ -43,15 +43,62 @@ export const getBriefingData = query({
     let totalSaves = 0;
     let totalClicks = 0;
 
+    const timeBuckets = new Map<
+      string,
+      { date: string; timestamp: number; impressions: number; reach: number; meaningfulActions: number }
+    >();
+
+    const platformMap = new Map<
+      string,
+      { platform: string; count: number; reach: number; impressions: number }
+    >();
+
     for (const item of content) {
-      if (item.metrics) {
-        totalImpressions += item.metrics.impressions ?? 0;
-        totalReach += item.metrics.reach ?? 0;
-        totalShares += item.metrics.shares ?? 0;
-        totalSaves += item.metrics.saves ?? 0;
-        totalClicks += item.metrics.clicks ?? 0;
-      }
+      const imp = item.metrics?.impressions ?? 0;
+      const reach = item.metrics?.reach ?? 0;
+      const shares = item.metrics?.shares ?? 0;
+      const saves = item.metrics?.saves ?? 0;
+      const clicks = item.metrics?.clicks ?? 0;
+
+      totalImpressions += imp;
+      totalReach += reach;
+      totalShares += shares;
+      totalSaves += saves;
+      totalClicks += clicks;
+
+      const dateStr = new Date(item.publishedAt).toISOString().split("T")[0];
+      const existingBucket = timeBuckets.get(dateStr) ?? {
+        date: dateStr,
+        timestamp: new Date(dateStr).getTime(),
+        impressions: 0,
+        reach: 0,
+        meaningfulActions: 0,
+      };
+      existingBucket.impressions += imp;
+      existingBucket.reach += reach;
+      existingBucket.meaningfulActions += shares + saves + clicks;
+      timeBuckets.set(dateStr, existingBucket);
+
+      const p = item.provider || "general";
+      const existingPlat = platformMap.get(p) ?? {
+        platform: p,
+        count: 0,
+        reach: 0,
+        impressions: 0,
+      };
+      existingPlat.count += 1;
+      existingPlat.reach += reach;
+      existingPlat.impressions += imp;
+      platformMap.set(p, existingPlat);
     }
+
+    const timeSeries = Array.from(timeBuckets.values()).sort(
+      (a, b) => a.timestamp - b.timestamp
+    );
+
+    const platformBreakdown = Array.from(platformMap.values()).sort(
+      (a, b) => b.reach - a.reach
+    );
 
     const meaningfulActions = totalShares + totalSaves + totalClicks;
     const meaningfulRate =
@@ -80,6 +127,8 @@ export const getBriefingData = query({
         meaningfulRate,
         contentCount: content.length,
       },
+      timeSeries,
+      platformBreakdown,
       activeInitiatives: initiatives,
       candidateOutcomes,
       recentOutcomes,

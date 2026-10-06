@@ -20,6 +20,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { useState } from "react";
+import { OverviewTrendChart } from "@/components/charts/overview-trend-chart";
+import { PlatformDonutChart } from "@/components/charts/platform-donut-chart";
 
 export default function OrganizationHomePage() {
   const { organization, organizationId, organizationName, organizationSlug, userRole } =
@@ -185,6 +187,21 @@ export default function OrganizationHomePage() {
                 </div>
               </div>
             </div>
+
+            {/* Interactive Charts Section */}
+            {briefing?.timeSeries && briefing.timeSeries.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-[var(--border)] grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <OverviewTrendChart data={briefing.timeSeries} height={260} />
+                </div>
+                <div className="border-t lg:border-t-0 lg:border-l border-[var(--border)] lg:pl-6 pt-4 lg:pt-0">
+                  <span className="text-xs font-medium text-[var(--muted-foreground)] block mb-2">
+                    Channel Reach Distribution
+                  </span>
+                  <PlatformDonutChart data={briefing.platformBreakdown ?? []} height={230} />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section: Active Initiatives */}
