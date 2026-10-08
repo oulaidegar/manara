@@ -33,6 +33,15 @@ export function ConnectAccountModal({
 
   const connectAccount = useMutation(api.socialAccounts.connectSocialAccount);
   const runAccountImport = useMutation(api.socialSync.runAccountImport);
+  const batchUpsertPosts = useMutation(api.socialPosts.batchUpsertPosts);
+
+  const CIVIC_PRESETS = [
+    { label: "@darajmedia", platform: "instagram" as const, handle: "darajmedia", desc: "Investigative" },
+    { label: "@smex_org", platform: "instagram" as const, handle: "smex_org", desc: "Digital Rights" },
+    { label: "@arijnetwork", platform: "instagram" as const, handle: "arijnetwork", desc: "Arab Watchdog" },
+    { label: "@amnesty", platform: "x" as const, handle: "amnesty", desc: "Human Rights" },
+    { label: "@democracynow", platform: "youtube" as const, handle: "democracynow", desc: "Independent News" },
+  ];
 
   if (!isOpen) return null;
 
@@ -53,27 +62,87 @@ export function ConnectAccountModal({
 
     setIsLoading(true);
     setError(null);
-    setImportStatus(`Validating @${handle.trim().replace(/^@/, "")} on ${platform}...`);
+    const cleanHandle = handle.trim().replace(/^@/, "");
+    setImportStatus(`Crawling @${cleanHandle} on ${platform} via SocialCrawl...`);
 
     try {
-      // Step 1: Connect account record
+      // Step 1: Attempt live crawl via Next.js SocialCrawl sync API
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let crawlResult: any = null;
+      try {
+        const syncRes = await fetch("/api/social/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platform,
+            handle: cleanHandle,
+            count: 20,
+          }),
+        });
+        if (syncRes.ok) {
+          crawlResult = await syncRes.json();
+        }
+      } catch (crawlErr) {
+        console.warn("Live crawl network call failed, falling back:", crawlErr);
+      }
+
       setImportStatus("Connecting account profile...");
+      // Step 2: Connect account record with real or normalized profile details
+      const profile = crawlResult?.profile;
       const result = await connectAccount({
         organizationId: organization._id,
         platform,
-        handle: handle.trim(),
+        handle: cleanHandle,
+        displayName: profile?.displayName,
+        profileUrl: profile?.profileUrl,
+        profileImageUrl: profile?.profileImageUrl,
+        followerCount: profile?.followerCount,
+        followingCount: profile?.followingCount,
+        totalPosts: profile?.totalPosts,
+        provider: "socialcrawl",
       });
 
-      // Step 2: Run historical post backfill
-      setImportStatus(`Importing ${platform} posts...`);
-      const importResult = await runAccountImport({
-        organizationId: organization._id,
-        accountId: result.accountId,
-        jobId: result.jobId,
-        count: 25,
-      });
+      // Step 3: Upsert live crawled posts if available, otherwise fallback to backfill mutation
+      if (crawlResult?.posts && crawlResult.posts.length > 0) {
+        setImportStatus(`Ingesting ${crawlResult.posts.length} live posts into repository...`);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const postsToUpsert = crawlResult.posts.map((p: any) => ({
+          platform: p.platform,
+          externalPostId: p.externalPostId,
+          url: p.url,
+          publishedAt: p.publishedAt,
+          caption: p.caption,
+          title: p.title,
+          postType: p.postType,
+          thumbnailUrl: p.thumbnailUrl,
+          mediaUrls: p.mediaUrls,
+          views: p.views,
+          impressions: p.impressions,
+          reach: p.reach,
+          likes: p.likes,
+          comments: p.comments,
+          shares: p.shares,
+          saves: p.saves,
+          provider: "socialcrawl",
+        }));
 
-      setImportStatus(`${importResult.importedCount} posts imported. Analyzing content...`);
+        await batchUpsertPosts({
+          organizationId: organization._id,
+          accountId: result.accountId,
+          posts: postsToUpsert,
+        });
+
+        setImportStatus(`${crawlResult.posts.length} real posts crawled & synced!`);
+      } else {
+        setImportStatus(`Importing ${platform} posts...`);
+        const importResult = await runAccountImport({
+          organizationId: organization._id,
+          accountId: result.accountId,
+          jobId: result.jobId,
+          count: 25,
+        });
+        setImportStatus(`${importResult.importedCount} posts imported. Analyzing content...`);
+      }
 
       // Short delay for user visibility
       setTimeout(() => {
@@ -154,6 +223,33 @@ export function ConnectAccountModal({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--muted)]/20 p-2.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-medium text-[var(--muted-foreground)]">
+                1-Click Civic Presets (Zero OAuth)
+              </span>
+              <span className="text-[10px] text-emerald-500 font-medium">Live SocialCrawl</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {CIVIC_PRESETS.map((preset) => (
+                <button
+                  key={preset.handle}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setPlatform(preset.platform);
+                    setHandle(preset.handle);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-[11px] font-medium text-[var(--foreground)] hover:border-emerald-500 hover:text-emerald-500 transition-colors"
+                >
+                  <PlatformIcon platform={preset.platform} className="h-3 w-3" />
+                  <span>{preset.label}</span>
+                  <span className="text-[9px] text-[var(--muted-foreground)]">({preset.desc})</span>
+                </button>
+              ))}
             </div>
           </div>
 

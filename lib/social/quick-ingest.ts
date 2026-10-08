@@ -2,6 +2,7 @@ import { SocialPlatform } from "./types";
 import { calculatePIEI } from "./normalize";
 import { analyzePostContent } from "../ai/service";
 import { PostContentAnalysisResult } from "../ai/types";
+import { SocialCrawlProvider } from "./providers/socialcrawl";
 
 export interface ParsedUrlDetails {
   platform: SocialPlatform;
@@ -22,6 +23,8 @@ export interface IngestedPostData {
   authorName?: string;
   authorHandle?: string;
   thumbnailUrl?: string;
+  mediaUrls?: string[];
+  provider?: string;
   publishedAt: number;
   views: number;
   impressions: number;
@@ -229,16 +232,64 @@ export async function ingestPostFromUrl(rawUrl: string): Promise<IngestedPostDat
 
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
-  // Realistic public interest metrics
-  const views = Math.floor(14000 + Math.random() * 25000);
-  const impressions = Math.round(views * 1.25);
-  const reach = Math.round(views * 0.82);
 
-  // High conviction defaults (documentary & civic reporting)
-  const likes = Math.round(views * 0.038);
-  const comments = Math.round(likes * 0.08);
-  const shares = Math.round(likes * 0.28); // 3x weight
-  const saves = Math.round(likes * 0.25);  // 5x weight
+  let title = metadata.title;
+  let caption = metadata.caption;
+  let authorName = metadata.authorName;
+  let authorHandle = metadata.authorHandle;
+  let thumbnailUrl = metadata.thumbnailUrl;
+  let mediaUrls: string[] | undefined = undefined;
+  let postType = parsed.postType;
+  let publishedAt = now - Math.floor(2 + Math.random() * 8) * dayMs;
+  let providerName = "quick_ingest";
+
+  // Realistic fallback defaults
+  let views = Math.floor(14000 + Math.random() * 25000);
+  let impressions = Math.round(views * 1.25);
+  let reach = Math.round(views * 0.82);
+  let likes = Math.round(views * 0.038);
+  let comments = Math.round(likes * 0.08);
+  let shares = Math.round(likes * 0.28);
+  let saves = Math.round(likes * 0.25);
+
+  // If live SocialCrawl API key is configured and supported platform, retrieve live post data
+  if (process.env.SOCIALCRAWL_API_KEY && parsed.platform !== "other") {
+    try {
+      const socialCrawl = new SocialCrawlProvider();
+      const livePost = await socialCrawl.getPost({
+        platform: parsed.platform,
+        externalPostId: parsed.externalPostId,
+        url: parsed.cleanUrl,
+      });
+
+      // Verify that this is not an empty offline mock
+      const isLiveResult = livePost && livePost.raw && !(livePost.raw as { mock?: boolean }).mock;
+      if (isLiveResult) {
+        providerName = "socialcrawl";
+        if (livePost.title) title = livePost.title;
+        if (livePost.caption) caption = livePost.caption;
+        if (livePost.authorName) authorName = livePost.authorName;
+        if (livePost.authorHandle) authorHandle = livePost.authorHandle;
+        if (livePost.thumbnailUrl) thumbnailUrl = livePost.thumbnailUrl;
+        if (livePost.mediaUrls && livePost.mediaUrls.length > 0) mediaUrls = livePost.mediaUrls;
+        if (livePost.postType) postType = livePost.postType;
+        if (livePost.publishedAt) publishedAt = livePost.publishedAt;
+
+        likes = livePost.metrics.likes ?? 0;
+        comments = livePost.metrics.comments ?? 0;
+        shares = livePost.metrics.shares ?? Math.round(likes * 0.15);
+        saves = livePost.metrics.saves ?? Math.round(likes * 0.12);
+
+        // Compute exposure metrics (views/reach/impressions)
+        const reportedViews = livePost.metrics.views ?? 0;
+        views = reportedViews > 0 ? reportedViews : Math.max(1200, (likes + comments) * 14);
+        impressions = livePost.metrics.impressions ?? Math.round(views * 1.25);
+        reach = livePost.metrics.reach ?? Math.round(views * 0.85);
+      }
+    } catch (err) {
+      console.warn(`[QuickIngest] Live SocialCrawl fetch failed for ${parsed.cleanUrl}, using baseline:`, err);
+    }
+  }
 
   // Compute PIEI
   const pieiResult = calculatePIEI({
@@ -258,22 +309,24 @@ export async function ingestPostFromUrl(rawUrl: string): Promise<IngestedPostDat
   // AI Content Analysis & Micro-Taxonomy
   const analysis = await analyzePostContent({
     platform: parsed.platform,
-    postType: parsed.postType,
-    title: metadata.title,
-    caption: metadata.caption,
+    postType,
+    title,
+    caption,
   });
 
   return {
     platform: parsed.platform,
     externalPostId: parsed.externalPostId,
     url: parsed.cleanUrl,
-    title: metadata.title,
-    caption: metadata.caption,
-    postType: parsed.postType,
-    authorName: metadata.authorName,
-    authorHandle: metadata.authorHandle,
-    thumbnailUrl: metadata.thumbnailUrl,
-    publishedAt: now - Math.floor(2 + Math.random() * 8) * dayMs,
+    title,
+    caption,
+    postType,
+    authorName,
+    authorHandle,
+    thumbnailUrl,
+    mediaUrls,
+    provider: providerName,
+    publishedAt,
     views,
     impressions,
     reach,
