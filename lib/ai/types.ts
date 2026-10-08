@@ -104,3 +104,108 @@ export interface PostPerformanceExplanationResult {
   testingRecommendation: string;
   confidence: "early_signal" | "promising_pattern" | "strong_evidence";
 }
+
+export type ReportPersona = "donor" | "board" | "editorial" | "campaign" | "monthly" | "quarterly" | "annual" | "custom";
+
+export interface DeterministicReportBundle {
+  reportTitle: string;
+  reportType: ReportPersona;
+  donorFramework?: "ned" | "osf" | "eed" | "ford" | "general";
+  grantReference?: string;
+  periodStart: number;
+  periodEnd: number;
+  periodDays: number;
+  organizationName: string;
+  campaignTitle?: string;
+  initiativeTitle?: string;
+  kpi: {
+    totalImpressions: number;
+    totalReach: number;
+    totalViews: number;
+    totalShares: number;
+    totalSaves: number;
+    meaningfulActions: number;
+    meaningfulRate: number;
+    pieiScore?: number;
+    outputsCount: number;
+    outcomesCount: number;
+    webReaders?: number;
+    avgEngagementTimeSeconds?: number;
+    scrollDepthPercent?: number;
+    documentDownloads?: number;
+    previousPeriodDelta?: {
+      impressionsDeltaPercent: number;
+      reachDeltaPercent: number;
+      savesDeltaPercent: number;
+    };
+  };
+  formatEfficiency: Array<{
+    format: string;
+    count: number;
+    impressions: number;
+    views: number;
+    shares: number;
+    saves: number;
+    efficiencyRate: number;
+    avgPiei?: number;
+  }>;
+  velocityCurve: Array<{
+    date: string;
+    timestamp: number;
+    impressions: number;
+    reach: number;
+    views: number;
+    shares: number;
+    saves: number;
+    meaningfulActions: number;
+    meaningfulRate: number;
+  }>;
+  topShowcases: Array<{
+    id: string;
+    title: string;
+    platform: string;
+    format: string;
+    views: number;
+    shares: number;
+    saves: number;
+    pieiScore?: number;
+    webReferrals?: number;
+    hookType?: string;
+    ctaType?: string;
+  }>;
+  verifiedOutcomes: Array<{
+    id: string;
+    title: string;
+    description: string;
+    changeType: string;
+    verificationStatus: string;
+    contributionStatement?: string;
+    evidenceItems: Array<{
+      title: string;
+      publisher?: string;
+      url?: string;
+    }>;
+  }>;
+  evaluatedPractices?: Array<{
+    title: string;
+    hypothesis?: string;
+    difference: number;
+    confidenceLabel: string;
+  }>;
+}
+
+export interface PrescriptiveRecommendation {
+  title: string;
+  rationale: string;
+  actionableStep: string;
+  expectedImpact: string;
+  priority: "high" | "strategic" | "medium";
+}
+
+export interface ReportSynthesisResult {
+  executiveSummary: string;
+  personaTakeaways: string[];
+  formatAnalysisInsight: string;
+  prescriptiveRecommendations: PrescriptiveRecommendation[];
+  contributionStandardNote: string;
+}

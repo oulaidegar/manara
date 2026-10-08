@@ -27,6 +27,7 @@ import type * as initiatives from "../initiatives.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_errors from "../lib/errors.js";
+import type * as lib_reportSynthesis from "../lib/reportSynthesis.js";
 import type * as metrics from "../metrics.js";
 import type * as organizations_members from "../organizations/members.js";
 import type * as organizations_mutations from "../organizations/mutations.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "lib/audit": typeof lib_audit;
   "lib/auth": typeof lib_auth;
   "lib/errors": typeof lib_errors;
+  "lib/reportSynthesis": typeof lib_reportSynthesis;
   metrics: typeof metrics;
   "organizations/members": typeof organizations_members;
   "organizations/mutations": typeof organizations_mutations;

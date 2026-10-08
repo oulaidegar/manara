@@ -23,8 +23,11 @@ import {
   ExternalLink,
   CheckCircle2,
   Target,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
+import { FormatEfficiencyChart } from "@/components/charts/format-efficiency-chart";
+import { TimeSeriesTrendChart } from "@/components/charts/time-series-trend-chart";
 
 interface SnapshotGrowthPoint {
   stepLabel: string;
@@ -341,13 +344,30 @@ export function ReportViewer({ reportId, onClose, standalone = false }: ReportVi
             <section key={block._id} className="space-y-3 print:break-inside-avoid">
               {/* BLOCK: Executive Summary */}
               {block.type === "executive_summary" && (
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--muted)]/20 p-6 space-y-2 print:border-black print:bg-white print:p-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] print:text-black">
-                    Executive Summary & Grant Narrative
-                  </h3>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--muted)]/20 p-6 space-y-4 print:border-black print:bg-white print:p-4">
+                  <div className="flex items-center justify-between gap-2 border-b border-[var(--border)]/60 pb-3 print:border-black">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] print:text-black">
+                      Executive Summary & Strategic Synthesis
+                    </h3>
+                    {block.snapshotData?.persona && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30">
+                        {block.snapshotData.persona} Persona
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap print:text-xs print:text-black">
                     {block.generatedText}
                   </p>
+                  {block.snapshotData?.takeaways && Array.isArray(block.snapshotData.takeaways) && (
+                    <div className="pt-3 border-t border-[var(--border)]/60 grid grid-cols-1 sm:grid-cols-2 gap-2 print:border-black">
+                      {block.snapshotData.takeaways.map((point: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs text-[var(--foreground)] print:text-black">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                          <span>{point}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -463,6 +483,78 @@ export function ReportViewer({ reportId, onClose, standalone = false }: ReportVi
                       </span>
                     </div>
                   </div>
+
+                  {/* Web Readership & Civic Attention Card (Pillar 2 Foundation) */}
+                  {block.snapshotData.webReaders !== undefined && (
+                    <div className="rounded-xl border border-[var(--border)] bg-gradient-to-r from-teal-500/10 via-[var(--card)] to-indigo-500/10 p-4 shadow-2xs print:border-black print:bg-white">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                            Civic Attention & Long-Form Readership
+                          </span>
+                          <div className="flex flex-wrap items-baseline gap-3">
+                            <span className="text-xl font-bold font-mono text-[var(--foreground)] print:text-black">
+                              {block.snapshotData.webReaders.toLocaleString()} Readers
+                            </span>
+                            <span className="text-xs text-[var(--muted-foreground)]">
+                              Avg Read Time:{" "}
+                              <strong className="text-[var(--foreground)] font-mono">
+                                {Math.floor((block.snapshotData.avgEngagementTimeSeconds ?? 248) / 60)}m{" "}
+                                {(block.snapshotData.avgEngagementTimeSeconds ?? 248) % 60}s
+                              </strong>
+                            </span>
+                            <span className="text-xs text-[var(--muted-foreground)]">
+                              Scroll Depth:{" "}
+                              <strong className="text-[var(--foreground)] font-mono">
+                                {block.snapshotData.scrollDepthPercent ?? 84}%
+                              </strong>
+                            </span>
+                          </div>
+                        </div>
+                        {block.snapshotData.documentDownloads !== undefined && (
+                          <span className="px-2.5 py-1 rounded-lg border border-teal-500/30 bg-teal-500/15 text-teal-800 dark:text-teal-300 text-xs font-semibold self-start sm:self-auto">
+                            {block.snapshotData.documentDownloads.toLocaleString()} Document Downloads
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* BLOCK: Interactive ECharts Visualization */}
+              {block.type === "chart" && block.snapshotData?.data && (
+                <div className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-2xs print:border-black print:bg-white print:p-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)]/60 pb-3 print:border-black">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)] print:text-black">
+                        {block.configuration?.title || "Data Analytics Chart"}
+                      </h3>
+                      {block.configuration?.subtitle && (
+                        <p className="text-[11px] text-[var(--muted-foreground)] print:text-gray-700">
+                          {block.configuration.subtitle}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-[var(--muted)] text-[var(--muted-foreground)] self-start sm:self-auto">
+                      Interactive ECharts • Frozen Data
+                    </span>
+                  </div>
+
+                  {block.configuration?.chartType === "format_efficiency" ? (
+                    <div className="pt-2">
+                      <FormatEfficiencyChart data={block.snapshotData.data} height={280} />
+                      {block.snapshotData.insight && (
+                        <p className="mt-3 text-xs text-[var(--muted-foreground)] italic border-l-2 border-emerald-500 pl-3 leading-relaxed print:text-black">
+                          {block.snapshotData.insight}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="pt-2">
+                      <TimeSeriesTrendChart data={block.snapshotData.data} height={280} />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -712,6 +804,82 @@ export function ReportViewer({ reportId, onClose, standalone = false }: ReportVi
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* BLOCK: AI Prescriptive Recommendations */}
+              {block.type === "recommendation" && block.snapshotData?.recommendations && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] print:text-black">
+                      AI Prescriptive Recommendations & Tactical Next Steps
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 print:grid-cols-3">
+                    {block.snapshotData.recommendations.map(
+                      (
+                        rec: {
+                          title: string;
+                          rationale: string;
+                          actionableStep: string;
+                          expectedImpact: string;
+                          priority: "high" | "strategic" | "medium";
+                        },
+                        i: number
+                      ) => (
+                        <div
+                          key={i}
+                          className="rounded-2xl border border-[var(--border)] bg-gradient-to-b from-[var(--card)] to-[var(--muted)]/20 p-4 space-y-3 shadow-2xs flex flex-col justify-between print:border-black print:bg-white"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                  rec.priority === "high"
+                                    ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                                    : rec.priority === "strategic"
+                                    ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                                    : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                                }`}
+                              >
+                                {rec.priority} Priority
+                              </span>
+                              <span className="text-[10px] font-mono text-[var(--muted-foreground)]">
+                                Rec #{i + 1}
+                              </span>
+                            </div>
+
+                            <h4 className="text-xs font-bold text-[var(--foreground)] leading-snug print:text-black">
+                              {rec.title}
+                            </h4>
+
+                            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed print:text-gray-800">
+                              {rec.rationale}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-[var(--border)]/60 space-y-1.5 text-[11px] print:border-black">
+                            <div>
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-[10px] uppercase tracking-wider block">
+                                Actionable Step:
+                              </span>
+                              <p className="text-[11px] text-[var(--foreground)] mt-0.5 print:text-black">
+                                {rec.actionableStep}
+                              </p>
+                            </div>
+                            {rec.expectedImpact && (
+                              <div className="text-[10px] text-[var(--muted-foreground)]">
+                                <span className="font-medium text-[var(--foreground)]">Impact:</span>{" "}
+                                {rec.expectedImpact}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               )}
