@@ -18,6 +18,7 @@ import {
   Sparkles,
   TreePine,
   Filter,
+  Globe,
 } from "lucide-react";
 import { ConnectAccountModal } from "@/components/social/connect-account-modal";
 import { PlatformIcon } from "@/components/social/platform-icon";
@@ -29,6 +30,7 @@ import {
   MicroTaxonomyPill,
 } from "@/components/social/insight-pill";
 import { CampaignAutoSuggestBanner } from "@/components/campaigns/campaign-auto-suggest-banner";
+import { GA4OverviewPanel } from "@/components/analytics/ga4-overview-panel";
 
 type SortOption =
   | "pieiScore"
@@ -45,6 +47,7 @@ type SortOption =
 export default function ContentExplorerPage() {
   const { organization, organizationSlug } = useOrganization();
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [contentDomain, setContentDomain] = useState<"social" | "web">("social");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedFormat, setSelectedFormat] = useState<string>("all");
   const [selectedHook, setSelectedHook] = useState<string>("all");
@@ -100,33 +103,34 @@ export default function ContentExplorerPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Dual View Toggle (Pillar 3) */}
-          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--background)] p-1">
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                viewMode === "cards"
-                  ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
-                  : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-              }`}
-              title="Visual Feed Grid View"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>Feed Grid</span>
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                viewMode === "table"
-                  ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
-                  : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-              }`}
-              title="Power Table View"
-            >
-              <List className="h-3.5 w-3.5" />
-              <span>Power Table</span>
-            </button>
-          </div>
+          {contentDomain === "social" && (
+            <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--background)] p-1">
+              <button
+                onClick={() => setViewMode("cards")}
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  viewMode === "cards"
+                    ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+                title="Visual Feed Grid View"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Feed Grid</span>
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  viewMode === "table"
+                    ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+                title="Power Table View"
+              >
+                <List className="h-3.5 w-3.5" />
+                <span>Power Table</span>
+              </button>
+            </div>
+          )}
 
           <button
             onClick={() => setIsConnectModalOpen(true)}
@@ -138,7 +142,38 @@ export default function ContentExplorerPage() {
         </div>
       </div>
 
-      {/* Universal Quick Ingest Bar (Pillar 3) */}
+      {/* Domain Navigation Bar: Social vs Web Readership (Pillar 2) */}
+      <div className="flex border-b border-[var(--border)] gap-2 overflow-x-auto pb-0.5 text-xs sm:text-sm font-semibold">
+        <button
+          onClick={() => setContentDomain("social")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition-all cursor-pointer ${
+            contentDomain === "social"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <Sparkles className="h-4 w-4" />
+          <span>Social Feeds & PIEI Engine</span>
+        </button>
+
+        <button
+          onClick={() => setContentDomain("web")}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition-all cursor-pointer ${
+            contentDomain === "web"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <Globe className="h-4 w-4" />
+          <span>Web Readership (GA4 Attribution)</span>
+        </button>
+      </div>
+
+      {contentDomain === "web" ? (
+        <GA4OverviewPanel />
+      ) : (
+        <>
+          {/* Universal Quick Ingest Bar (Pillar 3) */}
       <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--card)] via-[var(--card)] to-purple-950/10 p-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
           <div className="flex items-center gap-2">
@@ -521,6 +556,8 @@ export default function ContentExplorerPage() {
             </tbody>
           </table>
         </div>
+      )}
+        </>
       )}
 
       {/* Connect Account Modal */}

@@ -418,16 +418,40 @@ export const createReport = mutation({
         : 0;
 
     // Web Readership & Civic Attention (Pillar 2 Foundation)
+    const orgWebArticles = await ctx.db
+      .query("webArticles")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .collect();
+
+    const periodWebArticles = orgWebArticles.filter(
+      (a) => a.publishedAt >= args.periodStart && a.publishedAt <= args.periodEnd
+    );
+    const relevantWebArticles = periodWebArticles.length > 0 ? periodWebArticles : orgWebArticles;
+
     const webItems = periodContent.filter(
       (it) => it.origin === "website" || it.contentType === "article" || it.contentType === "investigation"
     );
-    const webReaders =
-      webItems.length > 0
-        ? webItems.reduce((sum, it) => sum + (it.metrics?.views ?? 0), 0)
-        : Math.round(totalViews * 0.22);
-    const avgEngagementTimeSeconds = 248; // 4m 08s average read time
-    const scrollDepthPercent = 84;
-    const documentDownloads = Math.round(totalSaves * 0.45);
+
+    let webReaders = 0;
+    let avgEngagementTimeSeconds = 248; // 4m 08s average read time default
+    let scrollDepthPercent = 84;
+    let documentDownloads = 0;
+
+    if (relevantWebArticles.length > 0) {
+      webReaders = relevantWebArticles.reduce((sum, a) => sum + a.activeUsers, 0);
+      const totalDuration = relevantWebArticles.reduce((sum, a) => sum + a.averageEngagementTimeSeconds * a.sessions, 0);
+      const totalSess = relevantWebArticles.reduce((sum, a) => sum + a.sessions, 0);
+      avgEngagementTimeSeconds = totalSess > 0 ? Math.round(totalDuration / totalSess) : 248;
+      const totalScrollDepth = relevantWebArticles.reduce((sum, a) => sum + a.scrollDepth90Percent, 0);
+      scrollDepthPercent = totalSess > 0 ? Math.round((totalScrollDepth / totalSess) * 100) : 84;
+      documentDownloads = relevantWebArticles.reduce((sum, a) => sum + a.documentDownloads, 0);
+    } else {
+      webReaders =
+        webItems.length > 0
+          ? webItems.reduce((sum, it) => sum + (it.metrics?.views ?? 0), 0)
+          : Math.round(totalViews * 0.22);
+      documentDownloads = Math.round(totalSaves * 0.45);
+    }
 
     // Format Efficiency Matrix (Pillar 3 Chart 1)
     const formatBuckets: Record<

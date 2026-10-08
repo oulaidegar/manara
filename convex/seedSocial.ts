@@ -2,6 +2,7 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireOrganizationMember } from "./lib/auth";
 import { Id } from "./_generated/dataModel";
+import { DEMO_GA4_ARTICLES, buildCivicAttributionHeadline } from "./lib/ga4Data";
 
 export const seedSocialData = mutation({
   args: { organizationId: v.id("organizations") },
@@ -470,10 +471,106 @@ export const seedSocialData = mutation({
       });
     }
 
+    // 5. Ensure GA4 Demo Property & Web Articles (Pillar 2)
+    const existingGA4 = await ctx.db
+      .query("ga4Properties")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .first();
+
+    let ga4PropId = existingGA4?._id;
+    if (!existingGA4) {
+      ga4PropId = await ctx.db.insert("ga4Properties", {
+        organizationId: args.organizationId,
+        propertyId: "314159265",
+        displayName: "Daraj Media Main Site (GA4)",
+        websiteUrl: "https://daraj.media",
+        credentialsType: "demo_sandbox",
+        syncEnabled: true,
+        lastSyncedAt: now,
+        status: "connected",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const existingArticles = await ctx.db
+      .query("webArticles")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .collect();
+
+    if (existingArticles.length === 0 && ga4PropId) {
+      for (let i = 0; i < DEMO_GA4_ARTICLES.length; i++) {
+        const demoArt = DEMO_GA4_ARTICLES[i];
+        const publishedAt = now - (18 + i * 14) * dayMs;
+        const publishDateStr = new Date(publishedAt).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+
+        const headline = buildCivicAttributionHeadline({
+          articleTitle: demoArt.title,
+          uniqueReaders: demoArt.activeUsers,
+          socialSharePercent: demoArt.socialReferralShare,
+          topSocialFormat: demoArt.topSocialFormat,
+          publishDateStr,
+          avgEngagementSeconds: demoArt.averageEngagementTimeSeconds,
+        });
+
+        await ctx.db.insert("webArticles", {
+          organizationId: args.organizationId,
+          ga4PropertyId: ga4PropId,
+          url: demoArt.url,
+          path: demoArt.path,
+          title: demoArt.title,
+          publishedAt,
+          author: demoArt.author,
+          wordCount: demoArt.wordCount,
+          primaryTopic: demoArt.primaryTopic,
+          pageviews: demoArt.pageviews,
+          activeUsers: demoArt.activeUsers,
+          sessions: demoArt.sessions,
+          averageEngagementTimeSeconds: demoArt.averageEngagementTimeSeconds,
+          scrollDepth90Percent: demoArt.scrollDepth90Percent,
+          documentDownloads: demoArt.documentDownloads,
+          petitionClicks: demoArt.petitionClicks,
+          whistleblowerTips: demoArt.whistleblowerTips,
+          bounceRate: demoArt.bounceRate,
+          socialReferralShare: demoArt.socialReferralShare,
+          topReferrers: demoArt.topReferrers,
+          campaignId: i === 0 ? campHousingId : campClimateId,
+          attributionHeadline: headline,
+          lastSyncedAt: now,
+          createdAt: now,
+        });
+
+        // Mirror to contentItems
+        await ctx.db.insert("contentItems", {
+          organizationId: args.organizationId,
+          provider: "ga4",
+          externalUrl: demoArt.url,
+          origin: "website",
+          contentType: "investigation",
+          title: demoArt.title,
+          text: `Investigative dossier: ${demoArt.title}. Analyzed via Google Analytics 4.`,
+          publishedAt,
+          authorName: demoArt.author,
+          metrics: {
+            views: demoArt.pageviews,
+            reach: demoArt.activeUsers,
+            impressions: demoArt.sessions,
+            clicks: demoArt.documentDownloads + demoArt.petitionClicks,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+
     return {
       success: true,
       accountsCreated: accountConfigs.length,
       postsCreated: createdPostCount,
+      ga4Connected: true,
     };
   },
 });

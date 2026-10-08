@@ -21,12 +21,14 @@ import {
   Award,
   Sparkles,
   FlaskConical,
+  Globe,
 } from "lucide-react";
 import { DonorDossierModal } from "@/components/reports/donor-dossier-modal";
 import { ReportViewer } from "@/components/reports/report-viewer";
 import { NarrativeRippleTimeline, TimelinePost } from "@/components/campaigns/narrative-ripple-timeline";
 import { HypothesisTester } from "@/components/campaigns/hypothesis-tester";
 import { CampaignAutoSuggestBanner } from "@/components/campaigns/campaign-auto-suggest-banner";
+import { GA4OverviewPanel } from "@/components/analytics/ga4-overview-panel";
 
 interface CampaignDetailPageProps {
   params: Promise<{
@@ -43,7 +45,7 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
   const [isAddImpactOpen, setIsAddImpactOpen] = useState(false);
   const [isDonorModalOpen, setIsDonorModalOpen] = useState(false);
   const [generatedReportId, setGeneratedReportId] = useState<Id<"reports"> | null>(null);
-  const [activeTab, setActiveTab] = useState<"ripple" | "content" | "hypothesis" | "impact">("ripple");
+  const [activeTab, setActiveTab] = useState<"ripple" | "content" | "web" | "hypothesis" | "impact">("ripple");
   const [postSearch, setPostSearch] = useState("");
 
   // Impact form state
@@ -322,6 +324,18 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
         </button>
 
         <button
+          onClick={() => setActiveTab("web")}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
+            activeTab === "web"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <Globe className="h-4 w-4" />
+          <span>Web Readership (GA4)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("hypothesis")}
           className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
             activeTab === "hypothesis"
@@ -363,6 +377,11 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
           campaignName={campaign.name}
           organizationSlug={organizationSlug}
         />
+      )}
+
+      {/* Tab: Web Readership & GA4 Social Attribution */}
+      {activeTab === "web" && (
+        <GA4OverviewPanel campaignId={campaignId as Id<"campaigns">} showHeader={false} />
       )}
 
       {/* Tab: Empirical Hypothesis Testing */}

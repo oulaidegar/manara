@@ -438,6 +438,62 @@ export default defineSchema({
     .index("by_organization_publishedAt", ["organizationId", "publishedAt"])
     .index("by_account", ["accountId"]),
 
+  // --- Google Analytics 4 (GA4) & Web Readership (Pillar 2) ---
+  ga4Properties: defineTable({
+    organizationId: v.id("organizations"),
+    propertyId: v.string(), // e.g. "314159265"
+    displayName: v.string(), // e.g. "Daraj Media Main Site"
+    websiteUrl: v.string(), // e.g. "https://daraj.media"
+    credentialsType: v.union(v.literal("service_account"), v.literal("demo_sandbox")),
+    serviceAccountEmail: v.optional(v.string()),
+    syncEnabled: v.boolean(),
+    lastSyncedAt: v.optional(v.number()),
+    status: v.union(v.literal("connected"), v.literal("disconnected"), v.literal("error")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_organization", ["organizationId"]),
+
+  webArticles: defineTable({
+    organizationId: v.id("organizations"),
+    ga4PropertyId: v.optional(v.id("ga4Properties")),
+    url: v.string(),
+    path: v.string(),
+    title: v.string(),
+    publishedAt: v.number(),
+    author: v.optional(v.string()),
+    wordCount: v.optional(v.number()),
+    primaryTopic: v.optional(v.string()),
+    // GA4 Core Metrics
+    pageviews: v.number(),
+    activeUsers: v.number(), // unique readers
+    sessions: v.number(),
+    averageEngagementTimeSeconds: v.number(), // deep attention vs skimming (e.g. 248s)
+    scrollDepth90Percent: v.number(), // sessions reaching >= 90% scroll
+    documentDownloads: v.number(), // clicks on PDF contracts / leaked dossiers
+    petitionClicks: v.number(),
+    whistleblowerTips: v.number(),
+    bounceRate: v.optional(v.number()),
+    // Social-to-Web Attribution Bridge
+    socialReferralShare: v.number(), // percentage of readers from social channels (e.g. 64)
+    topReferrers: v.array(
+      v.object({
+        source: v.string(),
+        medium: v.string(),
+        campaign: v.optional(v.string()),
+        users: v.number(),
+        avgTimeSeconds: v.number(),
+      })
+    ),
+    linkedPostId: v.optional(v.id("socialPosts")),
+    campaignId: v.optional(v.id("campaigns")),
+    attributionHeadline: v.optional(v.string()),
+    lastSyncedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_campaign", ["campaignId"])
+    .index("by_url", ["url"]),
+
   // --- Initiatives (Section 10) ---
   initiatives: defineTable({
     organizationId: v.id("organizations"),
