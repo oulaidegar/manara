@@ -20,6 +20,7 @@ import type * as connectors_tiktok_index from "../connectors/tiktok/index.js";
 import type * as connectors_youtube_index from "../connectors/youtube/index.js";
 import type * as content from "../content.js";
 import type * as crons from "../crons.js";
+import type * as hypotheses from "../hypotheses.js";
 import type * as impact from "../impact.js";
 import type * as imports from "../imports.js";
 import type * as initiatives from "../initiatives.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "connectors/youtube/index": typeof connectors_youtube_index;
   content: typeof content;
   crons: typeof crons;
+  hypotheses: typeof hypotheses;
   impact: typeof impact;
   imports: typeof imports;
   initiatives: typeof initiatives;

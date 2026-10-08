@@ -15,17 +15,20 @@ import {
   Sparkles,
   ArrowRight,
   ExternalLink,
+  Award,
 } from "lucide-react";
 import { useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
 import { ReportGeneratorModal } from "@/components/reports/report-generator-modal";
+import { DonorDossierModal } from "@/components/reports/donor-dossier-modal";
 import { ReportViewer } from "@/components/reports/report-viewer";
 
 export default function ReportsPage() {
   const { organizationId, organizationSlug, userRole } = useOrganization();
   const [activeTab, setActiveTab] = useState<string>("all");
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showDonorModal, setShowDonorModal] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<Id<"reports"> | null>(null);
 
   const reports = useQuery(api.reports.listReports, {
@@ -80,14 +83,25 @@ export default function ReportsPage() {
         </div>
 
         {canCreate && (
-          <button
-            type="button"
-            onClick={() => setShowGenerateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-xs font-semibold text-[var(--primary-foreground)] hover:opacity-90 transition-opacity shadow-2xs"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Generate Report</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDonorModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:opacity-95 transition-all"
+            >
+              <Award className="h-4 w-4" />
+              <span>Generate Grant Impact Dossier</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowGenerateModal(true)}
+              className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3.5 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors shadow-2xs"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Standard Report</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -245,6 +259,16 @@ export default function ReportsPage() {
       {showGenerateModal && (
         <ReportGeneratorModal
           onClose={() => setShowGenerateModal(false)}
+          onSuccess={(newId) => {
+            setSelectedReportId(newId);
+          }}
+        />
+      )}
+
+      {/* Donor Dossier Generator Modal */}
+      {showDonorModal && (
+        <DonorDossierModal
+          onClose={() => setShowDonorModal(false)}
           onSuccess={(newId) => {
             setSelectedReportId(newId);
           }}

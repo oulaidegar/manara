@@ -677,6 +677,18 @@ export default defineSchema({
       v.literal("editorial"),
       v.literal("custom")
     ),
+    donorFramework: v.optional(
+      v.union(
+        v.literal("ned"),
+        v.literal("osf"),
+        v.literal("eed"),
+        v.literal("ford"),
+        v.literal("general")
+      )
+    ),
+    grantReference: v.optional(v.string()),
+    campaignId: v.optional(v.id("campaigns")),
+    initiativeId: v.optional(v.id("initiatives")),
     periodStart: v.number(),
     periodEnd: v.number(),
     status: v.union(
@@ -705,6 +717,7 @@ export default defineSchema({
       v.literal("learning"),
       v.literal("recommendation"),
       v.literal("methodology"),
+      v.literal("grant_milestones"),
       v.literal("divider")
     ),
     position: v.number(),

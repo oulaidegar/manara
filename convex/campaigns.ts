@@ -91,19 +91,39 @@ export const getCampaign = query({
     const posts = await Promise.all(
       links.map(async (link) => {
         const post = await ctx.db.get(link.postId);
+        if (!post) return null;
+        const analysis = await ctx.db
+          .query("postAnalysis")
+          .withIndex("by_post", (q) => q.eq("postId", post._id))
+          .first();
+
         return {
           ...post,
           linkId: link._id,
           associationType: link.associationType,
+          hookType: analysis?.hookType,
+          slideBracket: analysis?.slideBracket,
+          videoLengthBracket: analysis?.videoLengthBracket,
+          callToAction: analysis?.ctaType,
+          topics: analysis?.topics,
         };
       })
     );
 
-    const validPosts = posts.filter((p) => p !== null && p._id !== undefined);
+    const validPosts = posts.filter((p): p is NonNullable<typeof p> => p !== null && p !== undefined);
 
     const totalViews = validPosts.reduce((sum, p) => sum + (p.views ?? 0), 0);
     const totalShares = validPosts.reduce((sum, p) => sum + (p.shares ?? 0), 0);
+    const totalSaves = validPosts.reduce((sum, p) => sum + (p.saves ?? 0), 0);
+    const totalLikes = validPosts.reduce((sum, p) => sum + (p.likes ?? 0), 0);
+    const totalComments = validPosts.reduce((sum, p) => sum + (p.comments ?? 0), 0);
+    const totalReach = validPosts.reduce((sum, p) => sum + (p.reach ?? p.views ?? 0), 0);
     const totalEngagement = validPosts.reduce((sum, p) => sum + (p.engagementCount ?? 0), 0);
+
+    const pieiDenominator = totalReach > 0 ? totalReach : (totalViews > 0 ? totalViews : 1);
+    const campaignPiei = Number(
+      (((totalSaves * 5 + totalShares * 3 + totalComments * 2 + totalLikes * 1) / pieiDenominator) * 100).toFixed(2)
+    );
 
     const avgEngagementRate =
       validPosts.length > 0
@@ -156,8 +176,10 @@ export const getCampaign = query({
       posts: validPosts,
       totalViews,
       totalShares,
+      totalSaves,
       totalEngagement,
       avgEngagementRate,
+      campaignPiei,
       postCount: validPosts.length,
       platformBreakdown,
       formatBreakdown,

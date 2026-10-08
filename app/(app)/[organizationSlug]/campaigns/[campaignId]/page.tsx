@@ -18,7 +18,14 @@ import {
   AlertCircle,
   X,
   Target,
+  Award,
+  Sparkles,
+  FlaskConical,
 } from "lucide-react";
+import { DonorDossierModal } from "@/components/reports/donor-dossier-modal";
+import { ReportViewer } from "@/components/reports/report-viewer";
+import { NarrativeRippleTimeline, TimelinePost } from "@/components/campaigns/narrative-ripple-timeline";
+import { HypothesisTester } from "@/components/campaigns/hypothesis-tester";
 
 interface CampaignDetailPageProps {
   params: Promise<{
@@ -33,6 +40,9 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
 
   const [isAddPostsOpen, setIsAddPostsOpen] = useState(false);
   const [isAddImpactOpen, setIsAddImpactOpen] = useState(false);
+  const [isDonorModalOpen, setIsDonorModalOpen] = useState(false);
+  const [generatedReportId, setGeneratedReportId] = useState<Id<"reports"> | null>(null);
+  const [activeTab, setActiveTab] = useState<"ripple" | "content" | "hypothesis" | "impact">("ripple");
   const [postSearch, setPostSearch] = useState("");
 
   // Impact form state
@@ -125,7 +135,19 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
     );
   }
 
-  const { campaign, posts, totalViews, totalShares, totalEngagement: _totalEngagement, avgEngagementRate, platformBreakdown, formatBreakdown, impactEvents } = campaignData;
+  const {
+    campaign,
+    posts,
+    totalViews,
+    totalShares,
+    totalSaves,
+    totalEngagement: _totalEngagement,
+    avgEngagementRate: _avgEngagementRate,
+    campaignPiei,
+    platformBreakdown,
+    formatBreakdown,
+    impactEvents,
+  } = campaignData;
 
   const filteredUnlinked = (unlinkedPosts || []).filter((p) => {
     if (!postSearch.trim()) return true;
@@ -188,6 +210,13 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={() => setIsDonorModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:opacity-95 transition-all"
+          >
+            <Award className="h-3.5 w-3.5" />
+            <span>Generate Grant Dossier</span>
+          </button>
+          <button
             onClick={() => setIsAddPostsOpen(true)}
             className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] shadow-xs"
           >
@@ -204,8 +233,8 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
         </div>
       </div>
 
-      {/* KPI Scorecard (Section 36) */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      {/* KPI Scorecard with PIEI & Conviction (Section 36 & Pillar 1/2) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xs">
           <div className="text-[11px] font-medium text-[var(--muted-foreground)]">Total Posts</div>
           <div className="mt-1 text-2xl font-bold font-mono text-[var(--foreground)]">
@@ -222,33 +251,126 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
             {formatNumber(totalViews)}
           </div>
           <div className="mt-1 text-[10px] text-[var(--muted-foreground)]">
-            Cross-platform views & impressions
+            Cross-platform reach
           </div>
         </div>
 
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xs">
-          <div className="text-[11px] font-medium text-[var(--muted-foreground)]">Total Shares</div>
+          <div className="text-[11px] font-medium text-[var(--muted-foreground)]">Evidence Saves (5x)</div>
+          <div className="mt-1 text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
+            {formatNumber(totalSaves)}
+          </div>
+          <div className="mt-1 text-[10px] text-[var(--muted-foreground)]">
+            High-conviction civic archives
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xs">
+          <div className="text-[11px] font-medium text-[var(--muted-foreground)]">Peer Shares (3x)</div>
           <div className="mt-1 text-2xl font-bold font-mono text-emerald-500">
             {formatNumber(totalShares)}
           </div>
           <div className="mt-1 text-[10px] text-emerald-500">
-            High-signal peer amplification
+            Grassroots peer mobilization
           </div>
         </div>
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xs">
-          <div className="text-[11px] font-medium text-[var(--muted-foreground)]">Avg. Engagement Rate</div>
-          <div className="mt-1 text-2xl font-bold font-mono text-[var(--foreground)]">
-            {(avgEngagementRate * 100).toFixed(2)}%
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xs col-span-2 sm:col-span-1">
+          <div className="text-[11px] font-medium text-[var(--muted-foreground)]">Campaign PIEI Score</div>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-2xl font-bold font-mono text-[var(--foreground)]">
+              {campaignPiei ?? "0.0"}
+            </span>
           </div>
           <div className="mt-1 text-[10px] text-[var(--muted-foreground)]">
-            Explicit denominator basis
+            Weighted Public Interest Index
           </div>
         </div>
       </div>
 
-      {/* Platform & Format Breakdown */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Campaign Views Navigation Bar */}
+      <div className="flex border-b border-[var(--border)] gap-2 overflow-x-auto pb-0.5 text-xs sm:text-sm font-semibold">
+        <button
+          onClick={() => setActiveTab("ripple")}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
+            activeTab === "ripple"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <Sparkles className="h-4 w-4" />
+          <span>Narrative Ripple Flow</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "ripple" ? "bg-white/20 text-white" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}>
+            {posts.length + impactEvents.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("content")}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
+            activeTab === "content"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>Campaign Content & Explorer</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "content" ? "bg-white/20 text-white" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}>
+            {posts.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("hypothesis")}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
+            activeTab === "hypothesis"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <FlaskConical className="h-4 w-4" />
+          <span>Empirical Hypothesis Testing</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "hypothesis" ? "bg-white/20 text-white" : "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300"}`}>
+            What Works
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("impact")}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
+            activeTab === "impact"
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-xs"
+              : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]/50"
+          }`}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          <span>Real-World Impact Ladder</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "impact" ? "bg-white/20 text-white" : "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"}`}>
+            {impactEvents.length} verified
+          </span>
+        </button>
+      </div>
+
+      {/* Tab: Narrative Ripple Flow */}
+      {activeTab === "ripple" && (
+        <NarrativeRippleTimeline
+          posts={(posts || []) as unknown as TimelinePost[]}
+          impactEvents={impactEvents}
+          campaignName={campaign.name}
+          organizationSlug={organizationSlug}
+        />
+      )}
+
+      {/* Tab: Empirical Hypothesis Testing */}
+      {activeTab === "hypothesis" && (
+        <HypothesisTester campaignId={campaignId} />
+      )}
+
+      {/* Tab: Campaign Content Explorer */}
+      {activeTab === "content" && (
+        <div className="space-y-6">
+          {/* Platform & Format Breakdown */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Platform Breakdown */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xs">
           <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3">
@@ -417,8 +539,11 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
           </div>
         )}
       </div>
+        </div>
+      )}
 
-      {/* Real-World Impact & Evidence (Section 42-44) */}
+      {/* Tab: Real-World Impact Evidence Ladder */}
+      {activeTab === "impact" && (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
           <div>
@@ -518,6 +643,7 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
           </div>
         )}
       </div>
+      )}
 
       {/* Add Posts Modal */}
       {isAddPostsOpen && (
@@ -719,6 +845,27 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Donor Dossier Generator Modal */}
+      {isDonorModalOpen && (
+        <DonorDossierModal
+          preselectedCampaignId={campaignId as Id<"campaigns">}
+          onClose={() => setIsDonorModalOpen(false)}
+          onSuccess={(newId) => {
+            setGeneratedReportId(newId);
+          }}
+        />
+      )}
+
+      {/* Snapshot Inspector Modal */}
+      {generatedReportId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <ReportViewer
+            reportId={generatedReportId}
+            onClose={() => setGeneratedReportId(null)}
+          />
         </div>
       )}
     </div>
