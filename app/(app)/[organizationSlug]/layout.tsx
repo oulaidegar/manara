@@ -1,13 +1,14 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { OrganizationProvider } from "@/components/organization-context";
 import { Loader2, ArrowLeft, ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function OrganizationLayout({
   children,
@@ -16,12 +17,25 @@ export default function OrganizationLayout({
 }) {
   const params = useParams();
   const router = useRouter();
+  const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
+  const { isLoading: isConvexLoading, isAuthenticated } = useConvexAuth();
   const slug = params.organizationSlug as string;
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // Auto-ensure user membership for this organization
+  const ensureAccess = useMutation(api.organizations.mutations.ensureAccess);
+
+  useEffect(() => {
+    if (isAuthLoaded && isSignedIn && isAuthenticated && slug) {
+      ensureAccess({ slug }).catch(() => {
+        // Safe to ignore if already established
+      });
+    }
+  }, [isAuthLoaded, isSignedIn, isAuthenticated, slug, ensureAccess]);
+
   const orgData = useQuery(api.organizations.queries.getBySlug, { slug });
 
-  if (orgData === undefined) {
+  if (!isAuthLoaded || isConvexLoading || orgData === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
         <div className="flex flex-col items-center gap-3">
@@ -33,6 +47,11 @@ export default function OrganizationLayout({
   }
 
   if (orgData === null) {
+    if (!isSignedIn) {
+      router.push("/sign-in");
+      return null;
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-5 p-6 bg-[var(--background)] text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400">
@@ -41,7 +60,7 @@ export default function OrganizationLayout({
         <div className="max-w-md">
           <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Workspace unavailable</h1>
           <p className="mt-2 text-sm text-[var(--muted-foreground)] leading-relaxed">
-            The organization <span className="font-semibold text-[var(--foreground)]">&quot;{slug}&quot;</span> does not exist, was archived, or your account does not have access permissions.
+            The organization <span className="font-semibold text-[var(--foreground)]">&quot;{slug}&quot;</span> does not exist or was removed.
           </p>
         </div>
         <button

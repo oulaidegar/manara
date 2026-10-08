@@ -87,10 +87,12 @@ export function ReportGeneratorModal({ onClose, onSuccess }: ReportGeneratorModa
   const [description, setDescription] = useState(TEMPLATES[0].defaultContext);
   const [periodPreset, setPeriodPreset] = useState<"30d" | "90d" | "ytd" | "all">("90d");
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string>("");
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Queries
   const initiatives = useQuery(api.initiatives.listInitiatives, { organizationId });
+  const campaigns = useQuery(api.campaigns.listCampaigns, { organizationId });
   const createReport = useMutation(api.reports.createReport);
 
   const handleSelectTemplate = (template: ArchetypeTemplate) => {
@@ -127,6 +129,7 @@ export function ReportGeneratorModal({ onClose, onSuccess }: ReportGeneratorModa
         periodStart,
         periodEnd: now,
         initiativeId: selectedInitiativeId ? (selectedInitiativeId as Id<"initiatives">) : undefined,
+        campaignId: selectedCampaignId ? (selectedCampaignId as Id<"campaigns">) : undefined,
       });
 
       onSuccess?.(reportId);
@@ -257,6 +260,24 @@ export function ReportGeneratorModal({ onClose, onSuccess }: ReportGeneratorModa
 
                 <div>
                   <label className="block text-xs font-semibold text-[var(--foreground)] mb-1">
+                    Campaign Focus (Optional)
+                  </label>
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--foreground)]"
+                  >
+                    <option value="">All Campaigns / Cross-Channel</option>
+                    {campaigns?.map((camp) => (
+                      <option key={camp._id} value={camp._id}>
+                        {camp.name} ({camp.postCount} posts)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--foreground)] mb-1">
                     Initiative Focus (Optional)
                   </label>
                   <select
@@ -264,7 +285,7 @@ export function ReportGeneratorModal({ onClose, onSuccess }: ReportGeneratorModa
                     onChange={(e) => setSelectedInitiativeId(e.target.value)}
                     className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--foreground)]"
                   >
-                    <option value="">All Organization Work</option>
+                    <option value="">All Strategic Initiatives</option>
                     {initiatives?.map((init) => (
                       <option key={init._id} value={init._id}>
                         {init.name}

@@ -1,6 +1,6 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { requireUser, requireOrganizationRole } from "../lib/auth";
+import { requireOrganizationRole } from "../lib/auth";
 import { ValidationError, NotFoundError } from "../lib/errors";
 
 export const create = mutation({
@@ -23,7 +23,27 @@ export const create = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+
+    if (!user) {
+      const newUserId = await ctx.db.insert("users", {
+        clerkUserId: identity.subject,
+        name: identity.name ?? "User",
+        email: identity.email ?? "",
+        avatarUrl: identity.pictureUrl,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      user = (await ctx.db.get(newUserId))!;
+    }
 
     // Validate slug (lowercase, alphanumeric + hyphens)
     if (!/^[a-z0-9-]+$/.test(args.slug)) {
@@ -113,5 +133,55 @@ export const update = mutation({
     });
 
     return organizationId;
+  },
+});
+
+export const ensureAccess = mutation({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    let user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", identity.subject))
+      .unique();
+
+    if (!user) {
+      const userId = await ctx.db.insert("users", {
+        clerkUserId: identity.subject,
+        name: identity.name ?? "User",
+        email: identity.email ?? "",
+        avatarUrl: identity.pictureUrl,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      user = (await ctx.db.get(userId))!;
+    }
+
+    const org = await ctx.db
+      .query("organizations")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+    if (!org) return null;
+
+    const membership = await ctx.db
+      .query("memberships")
+      .withIndex("by_organization_user", (q) =>
+        q.eq("organizationId", org._id).eq("userId", user._id)
+      )
+      .unique();
+
+    if (!membership) {
+      await ctx.db.insert("memberships", {
+        organizationId: org._id,
+        userId: user._id,
+        role: "owner",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+
+    return true;
   },
 });

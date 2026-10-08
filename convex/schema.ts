@@ -93,17 +93,278 @@ export default defineSchema({
   // --- Accounts & Integrations ---
   socialAccounts: defineTable({
     organizationId: v.id("organizations"),
-    provider: v.string(),
-    externalAccountId: v.string(),
-    name: v.string(),
+    platform: v.optional(
+      v.union(
+        v.literal("instagram"),
+        v.literal("linkedin"),
+        v.literal("tiktok"),
+        v.literal("youtube"),
+        v.literal("x"),
+        v.literal("facebook"),
+        v.literal("threads"),
+        v.literal("other")
+      )
+    ),
     handle: v.string(),
+    profileUrl: v.optional(v.string()),
+    externalAccountId: v.string(),
+    displayName: v.optional(v.string()),
+    profileImageUrl: v.optional(v.string()),
+    biography: v.optional(v.string()),
+    followerCount: v.optional(v.number()),
+    followingCount: v.optional(v.number()),
+    totalPosts: v.optional(v.number()),
+    verificationStatus: v.optional(v.boolean()),
+    provider: v.string(),
+    providerMetadata: v.optional(v.any()),
+    syncEnabled: v.optional(v.boolean()),
+    lastSyncedAt: v.optional(v.number()),
+    // Compatibility fields
+    name: v.optional(v.string()),
     url: v.optional(v.string()),
     accountType: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
-    active: v.boolean(),
+    active: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_platform", ["organizationId", "platform"]),
+
+  // --- Post-Level Social Posts (Section 8) ---
+  socialPosts: defineTable({
+    organizationId: v.id("organizations"),
+    accountId: v.id("socialAccounts"),
+    platform: v.string(),
+    externalPostId: v.string(),
+    url: v.string(),
+    publishedAt: v.number(),
+    caption: v.optional(v.string()),
+    title: v.optional(v.string()),
+    postType: v.optional(v.string()),
+    thumbnailUrl: v.optional(v.string()),
+    mediaUrls: v.optional(v.array(v.string())),
+    authorName: v.optional(v.string()),
+    authorHandle: v.optional(v.string()),
+
+    // Current/latest metrics
+    views: v.optional(v.number()),
+    impressions: v.optional(v.number()),
+    reach: v.optional(v.number()),
+    likes: v.optional(v.number()),
+    comments: v.optional(v.number()),
+    shares: v.optional(v.number()),
+    saves: v.optional(v.number()),
+    reposts: v.optional(v.number()),
+    clicks: v.optional(v.number()),
+    watchTimeSeconds: v.optional(v.number()),
+    averageWatchTimeSeconds: v.optional(v.number()),
+    durationSeconds: v.optional(v.number()),
+
+    // Radar-calculated metrics
+    engagementCount: v.optional(v.number()),
+    engagementRate: v.optional(v.number()),
+    engagementRateBasis: v.optional(
+      v.union(
+        v.literal("impressions"),
+        v.literal("reach"),
+        v.literal("views"),
+        v.literal("followers")
+      )
+    ),
+    viewToFollowerRate: v.optional(v.number()),
+    shareRate: v.optional(v.number()),
+    commentRate: v.optional(v.number()),
+    saveRate: v.optional(v.number()),
+
+    // Benchmarks & percentiles
+    viewPercentile: v.optional(v.number()),
+    engagementPercentile: v.optional(v.number()),
+    sharePercentile: v.optional(v.number()),
+    commentPercentile: v.optional(v.number()),
+    performanceScore: v.optional(v.number()),
+    viewVsMedianPercent: v.optional(v.number()),
+    shareVsMedianPercent: v.optional(v.number()),
+    commentVsMedianPercent: v.optional(v.number()),
+    engagementVsMedianPercent: v.optional(v.number()),
+
+    // Processing states
+    analysisStatus: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("complete"),
+      v.literal("failed")
+    ),
+    lastMetricsSyncAt: v.optional(v.number()),
+
+    // Provider tracking & raw data preservation
+    provider: v.string(),
+    rawProviderData: v.optional(v.any()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_account", ["accountId"])
+    .index("by_account_externalPostId", ["accountId", "externalPostId"])
+    .index("by_org_platform_publishedAt", ["organizationId", "platform", "publishedAt"])
+    .index("by_org_publishedAt", ["organizationId", "publishedAt"])
+    .index("by_org_analysisStatus", ["organizationId", "analysisStatus"]),
+
+  // --- Metric Snapshots (Section 10) ---
+  postMetricSnapshots: defineTable({
+    organizationId: v.id("organizations"),
+    postId: v.id("socialPosts"),
+    capturedAt: v.number(),
+    views: v.optional(v.number()),
+    impressions: v.optional(v.number()),
+    reach: v.optional(v.number()),
+    likes: v.optional(v.number()),
+    comments: v.optional(v.number()),
+    shares: v.optional(v.number()),
+    saves: v.optional(v.number()),
+    reposts: v.optional(v.number()),
+    clicks: v.optional(v.number()),
+    watchTimeSeconds: v.optional(v.number()),
+    provider: v.optional(v.string()),
+  })
+    .index("by_post", ["postId"])
+    .index("by_post_capturedAt", ["postId", "capturedAt"])
+    .index("by_organization", ["organizationId"]),
+
+  // --- Background Sync Jobs (Section 15) ---
+  syncJobs: defineTable({
+    organizationId: v.id("organizations"),
+    accountId: v.optional(v.id("socialAccounts")),
+    type: v.union(
+      v.literal("profile_sync"),
+      v.literal("post_backfill"),
+      v.literal("post_sync"),
+      v.literal("metric_refresh"),
+      v.literal("ai_analysis")
+    ),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("complete"),
+      v.literal("failed")
+    ),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    recordsProcessed: v.optional(v.number()),
+    error: v.optional(v.string()),
+    attempts: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_account", ["accountId"])
+    .index("by_status", ["status"]),
+
+  // --- Post Content Analysis (Section 26) ---
+  postAnalysis: defineTable({
+    postId: v.id("socialPosts"),
+    organizationId: v.id("organizations"),
+    primaryTopic: v.optional(v.string()),
+    topics: v.optional(v.array(v.string())),
+    contentFormat: v.optional(v.string()),
+    contentPurpose: v.optional(v.string()),
+    tone: v.optional(v.array(v.string())),
+    hookType: v.optional(v.string()),
+    ctaType: v.optional(v.string()),
+    targetAudience: v.optional(v.string()),
+    narrativeStyle: v.optional(v.string()),
+    containsStatistic: v.optional(v.boolean()),
+    containsQuote: v.optional(v.boolean()),
+    containsPerson: v.optional(v.boolean()),
+    containsQuestion: v.optional(v.boolean()),
+    containsExternalLink: v.optional(v.boolean()),
+    campaignCandidate: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    explanation: v.optional(v.string()),
+    analysisVersion: v.string(),
+    analyzedAt: v.number(),
+  })
+    .index("by_post", ["postId"])
+    .index("by_organization", ["organizationId"])
+    .index("by_org_primaryTopic", ["organizationId", "primaryTopic"])
+    .index("by_org_contentFormat", ["organizationId", "contentFormat"]),
+
+  // --- Campaigns & Campaign Content (Section 35) ---
+  campaigns: defineTable({
+    organizationId: v.id("organizations"),
+    name: v.string(),
+    description: v.optional(v.string()),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    objectives: v.optional(v.array(v.string())),
+    status: v.union(
+      v.literal("planning"),
+      v.literal("active"),
+      v.literal("completed")
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_organization", ["organizationId"]),
+
+  campaignContent: defineTable({
+    organizationId: v.id("organizations"),
+    campaignId: v.id("campaigns"),
+    postId: v.id("socialPosts"),
+    associationType: v.union(
+      v.literal("manual"),
+      v.literal("ai_suggested"),
+      v.literal("rule_based")
+    ),
+    confidence: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_campaign", ["campaignId"])
+    .index("by_post", ["postId"])
+    .index("by_organization", ["organizationId"]),
+
+  // --- Impact Events & Evidence (Section 42-43) ---
+  impactEvents: defineTable({
+    organizationId: v.id("organizations"),
+    campaignId: v.optional(v.id("campaigns")),
+    type: v.union(
+      v.literal("media_mention"),
+      v.literal("institutional_mention"),
+      v.literal("policy_discussion"),
+      v.literal("public_response"),
+      v.literal("formal_commitment"),
+      v.literal("institutional_action"),
+      v.literal("policy_change"),
+      v.literal("other")
+    ),
+    title: v.string(),
+    summary: v.string(),
+    occurredAt: v.optional(v.number()),
+    discoveredAt: v.number(),
+    confidence: v.number(),
+    status: v.union(
+      v.literal("candidate"),
+      v.literal("verified"),
+      v.literal("rejected")
+    ),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_campaign", ["campaignId"]),
+
+  impactEvidence: defineTable({
+    organizationId: v.id("organizations"),
+    impactEventId: v.id("impactEvents"),
+    sourceUrl: v.string(),
+    sourceTitle: v.optional(v.string()),
+    publisher: v.optional(v.string()),
+    publishedAt: v.optional(v.number()),
+    evidenceText: v.optional(v.string()),
+    retrievedAt: v.number(),
+    sourceType: v.optional(v.string()),
+  })
+    .index("by_impactEvent", ["impactEventId"])
+    .index("by_organization", ["organizationId"]),
+
 
   // --- Canonical Content Model (Section 13) ---
   contentItems: defineTable({

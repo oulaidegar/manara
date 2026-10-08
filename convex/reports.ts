@@ -130,6 +130,7 @@ export const createReport = mutation({
     periodStart: v.number(),
     periodEnd: v.number(),
     initiativeId: v.optional(v.id("initiatives")),
+    campaignId: v.optional(v.id("campaigns")),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -167,6 +168,29 @@ export const createReport = mutation({
       periodContent = periodContent.filter((it) => linkedContentIds.has(it._id));
     }
 
+    // 1b. Fetch social posts (First-Class Post-Level Intelligence)
+    const allSocialPosts = await ctx.db
+      .query("socialPosts")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .collect();
+
+    let periodSocialPosts = allSocialPosts.filter(
+      (p) => p.publishedAt >= args.periodStart && p.publishedAt <= args.periodEnd
+    );
+
+    let campaignTitle: string | null = null;
+    if (args.campaignId) {
+      const camp = await ctx.db.get(args.campaignId);
+      campaignTitle = camp?.name ?? null;
+
+      const links = await ctx.db
+        .query("campaignContent")
+        .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId!))
+        .collect();
+      const linkedPostIds = new Set(links.map((l) => l.postId));
+      periodSocialPosts = periodSocialPosts.filter((p) => linkedPostIds.has(p._id));
+    }
+
     // Compute live performance rollups to freeze into snapshot
     let totalImpressions = 0;
     let totalReach = 0;
@@ -186,21 +210,24 @@ export const createReport = mutation({
       }
     }
 
+    for (const post of periodSocialPosts) {
+      totalImpressions += post.impressions ?? post.views ?? 0;
+      totalReach += post.reach ?? post.views ?? 0;
+      totalViews += post.views ?? 0;
+      totalShares += post.shares ?? post.reposts ?? 0;
+      totalSaves += post.saves ?? 0;
+      totalClicks += post.clicks ?? 0;
+    }
+
     const meaningfulActions = totalShares + totalSaves + totalClicks;
     const meaningfulRate =
       totalImpressions > 0
         ? Number(((meaningfulActions / totalImpressions) * 1000).toFixed(1))
         : 0;
 
-    // Top 3 outputs by meaningful actions
-    const sortedOutputs = [...periodContent]
-      .sort((a, b) => {
-        const maA = (a.metrics?.shares ?? 0) + (a.metrics?.saves ?? 0);
-        const maB = (b.metrics?.shares ?? 0) + (b.metrics?.saves ?? 0);
-        return maB - maA;
-      })
-      .slice(0, 3)
-      .map((it) => ({
+    // Unified top outputs by meaningful actions (shares + saves)
+    const unifiedOutputs = [
+      ...periodContent.map((it) => ({
         id: it._id,
         title: it.title,
         contentType: it.contentType,
@@ -210,7 +237,27 @@ export const createReport = mutation({
         reach: it.metrics?.reach ?? 0,
         shares: it.metrics?.shares ?? 0,
         saves: it.metrics?.saves ?? 0,
-      }));
+      })),
+      ...periodSocialPosts.map((p) => ({
+        id: p._id,
+        title: p.title || p.caption || `${p.platform} Post`,
+        contentType: p.postType || "post",
+        provider: p.platform,
+        publishedAt: p.publishedAt,
+        impressions: p.impressions ?? p.views ?? 0,
+        reach: p.reach ?? p.views ?? 0,
+        shares: p.shares ?? p.reposts ?? 0,
+        saves: p.saves ?? 0,
+      })),
+    ];
+
+    const sortedOutputs = unifiedOutputs
+      .sort((a, b) => {
+        const maA = a.shares + a.saves;
+        const maB = b.shares + b.saves;
+        return maB - maA;
+      })
+      .slice(0, 5);
 
     // 2. Fetch outcomes & attached evidence items
     let outcomes = await ctx.db
@@ -227,7 +274,25 @@ export const createReport = mutation({
     }
 
     // Enrich each outcome with attached evidence items
-    const snapshotOutcomes = await Promise.all(
+    let snapshotOutcomes: Array<{
+      id: string;
+      title: string;
+      description: string;
+      changeType: string;
+      significance?: string;
+      contributionStatement: string;
+      contributionStrength: string;
+      verificationStatus: string;
+      occurredAt?: number;
+      evidenceItems: Array<{
+        id: string;
+        title: string;
+        type: string;
+        publisher?: string;
+        url?: string;
+        excerpt?: string;
+      }>;
+    }> = await Promise.all(
       outcomes.map(async (o) => {
         const evidence = await ctx.db
           .query("evidenceItems")
@@ -255,6 +320,45 @@ export const createReport = mutation({
         };
       })
     );
+
+    // If campaignId provided, include campaign impact events & evidence (Section 42-43)
+    if (args.campaignId) {
+      const campEvents = await ctx.db
+        .query("impactEvents")
+        .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId!))
+        .collect();
+
+      const enrichedCampEvents = await Promise.all(
+        campEvents.map(async (ev) => {
+          const evidence = await ctx.db
+            .query("impactEvidence")
+            .withIndex("by_impactEvent", (q) => q.eq("impactEventId", ev._id))
+            .collect();
+          return {
+            id: ev._id,
+            title: ev.title,
+            description: ev.summary,
+            changeType: ev.type,
+            significance: "strategic",
+            contributionStatement:
+              "Correlated public interest attention and documented institutional uptake.",
+            contributionStrength: "corroborated",
+            verificationStatus: ev.status,
+            occurredAt: ev.occurredAt ?? ev.discoveredAt,
+            evidenceItems: evidence.map((e) => ({
+              id: e._id,
+              title: e.sourceTitle || e.publisher || "Evidence",
+              type: "link",
+              publisher: e.publisher,
+              url: e.sourceUrl,
+              excerpt: e.evidenceText,
+            })),
+          };
+        })
+      );
+
+      snapshotOutcomes = [...snapshotOutcomes, ...enrichedCampEvents];
+    }
 
     // 3. Fetch validated practices (Learning Engine)
     const practices = await ctx.db
@@ -299,6 +403,8 @@ export const createReport = mutation({
       updatedAt: now,
     });
 
+    const totalOutputsCount = periodContent.length + periodSocialPosts.length;
+
     // 5. Build and insert tamper-proof report blocks (Section 16 & Section 39)
 
     // Block 1: Executive Summary
@@ -314,8 +420,12 @@ export const createReport = mutation({
         ).toLocaleDateString()} and ${new Date(
           args.periodEnd
         ).toLocaleDateString()}.${
-          initiativeTitle ? ` Special focus on initiative: ${initiativeTitle}.` : ""
-        } Across ${periodContent.length} published outputs, the organization reached approximately ${totalReach.toLocaleString()} unique individuals and recorded ${snapshotOutcomes.length} documented real-world changes backed by corroborating artifacts.`,
+          campaignTitle
+            ? ` Special focus on campaign: ${campaignTitle}.`
+            : initiativeTitle
+            ? ` Special focus on initiative: ${initiativeTitle}.`
+            : ""
+        } Across ${totalOutputsCount} published outputs, the organization generated ${totalViews.toLocaleString()} views, ${totalShares.toLocaleString()} shares, and recorded ${snapshotOutcomes.length} documented real-world changes backed by corroborating artifacts.`,
       snapshotAt: now,
       createdAt: now,
       updatedAt: now,
@@ -335,7 +445,7 @@ export const createReport = mutation({
         totalSaves,
         meaningfulActions,
         meaningfulRate,
-        outputsCount: periodContent.length,
+        outputsCount: totalOutputsCount,
         outcomesCount: snapshotOutcomes.length,
       },
       snapshotAt: now,

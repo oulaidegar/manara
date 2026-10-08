@@ -47,20 +47,23 @@ export function AppSidebar({ isOpen = false, onClose }: AppSidebarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const navItems = [
-    { name: "Home", href: `/${organizationSlug}`, icon: Home, exact: true },
-    { name: "Analyze", href: `/${organizationSlug}/analyze`, icon: BarChart3 },
-    { name: "Initiatives", href: `/${organizationSlug}/initiatives`, icon: Target },
-    { name: "Impact", href: `/${organizationSlug}/impact`, icon: Sparkles },
-    { name: "Reports", href: `/${organizationSlug}/reports`, icon: FileText },
-  ];
-
   const handleOrgSelect = (slug: string) => {
     setIsOrgDropdownOpen(false);
     if (slug !== organizationSlug) {
       router.push(`/${slug}`);
     }
   };
+
+  const isSocialRoute = pathname.includes(`/${organizationSlug}/social`);
+  const [isSocialOpen, setIsSocialOpen] = useState(true);
+
+  const socialPlatforms = [
+    { name: "Instagram", id: "instagram", href: `/${organizationSlug}/social/instagram` },
+    { name: "LinkedIn", id: "linkedin", href: `/${organizationSlug}/social/linkedin` },
+    { name: "TikTok", id: "tiktok", href: `/${organizationSlug}/social/tiktok` },
+    { name: "YouTube", id: "youtube", href: `/${organizationSlug}/social/youtube` },
+    { name: "X (Twitter)", id: "x", href: `/${organizationSlug}/social/x` },
+  ];
 
   return (
     <>
@@ -156,32 +159,118 @@ export function AppSidebar({ isOpen = false, onClose }: AppSidebarProps) {
           )}
         </div>
 
-        {/* Primary Navigation */}
+        {/* Primary Navigation - Section 4 Master Specification */}
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          <div className="px-3 pb-1 text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
-            Platform
+          {/* Overview */}
+          <Link
+            href={`/${organizationSlug}`}
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              pathname === `/${organizationSlug}`
+                ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <Home className="h-4 w-4" />
+            <span>Overview</span>
+          </Link>
+
+          {/* Social section with accordion */}
+          <div className="pt-1">
+            <button
+              onClick={() => setIsSocialOpen(!isSocialOpen)}
+              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                isSocialRoute
+                  ? "text-[var(--foreground)]"
+                  : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Radio className="h-4 w-4 text-emerald-500" />
+                <span>Social</span>
+              </div>
+              <ChevronsUpDown className="h-3.5 w-3.5 text-[var(--muted-foreground)]" />
+            </button>
+
+            {isSocialOpen && (
+              <div className="ml-5 mt-0.5 space-y-0.5 border-l border-[var(--border)] pl-2">
+                {socialPlatforms.map((platform) => {
+                  const isActive = pathname === platform.href;
+                  return (
+                    <Link
+                      key={platform.id}
+                      href={platform.href}
+                      onClick={onClose}
+                      className={`block rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        isActive
+                          ? "bg-[var(--muted)] font-semibold text-[var(--foreground)]"
+                          : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
+                    >
+                      {platform.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          {navItems.map((item) => {
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
-                    : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${isActive ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]"}`} />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+
+          {/* Content Explorer */}
+          <Link
+            href={`/${organizationSlug}/content`}
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              pathname.startsWith(`/${organizationSlug}/content`)
+                ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Content</span>
+          </Link>
+
+          {/* Campaigns */}
+          <Link
+            href={`/${organizationSlug}/campaigns`}
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              pathname.startsWith(`/${organizationSlug}/campaigns`) ||
+              pathname.startsWith(`/${organizationSlug}/initiatives`)
+                ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <Target className="h-4 w-4" />
+            <span>Campaigns</span>
+          </Link>
+
+          {/* Impact */}
+          <Link
+            href={`/${organizationSlug}/impact`}
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              pathname.startsWith(`/${organizationSlug}/impact`)
+                ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Impact</span>
+          </Link>
+
+          {/* Reports */}
+          <Link
+            href={`/${organizationSlug}/reports`}
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              pathname.startsWith(`/${organizationSlug}/reports`)
+                ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
+                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Reports</span>
+          </Link>
         </nav>
 
         {/* Live sync status banner */}

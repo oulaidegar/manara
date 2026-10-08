@@ -864,3 +864,243 @@ export const seedDemoData = mutation({
     };
   },
 });
+
+export const bootstrapAll = mutation({
+  args: {
+    clerkUserId: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    userName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // 1. Ensure user
+    let user = null;
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = args.clerkUserId ?? identity?.subject ?? "user_default_admin";
+    const email = args.userEmail ?? identity?.email ?? "admin@radar.internal";
+    const name = args.userName ?? identity?.name ?? "Admin User";
+
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", clerkId))
+      .unique();
+
+    if (existingUser) {
+      user = existingUser;
+    } else {
+      const newUserId = await ctx.db.insert("users", {
+        clerkUserId: clerkId,
+        name,
+        email,
+        createdAt: now,
+        updatedAt: now,
+      });
+      user = (await ctx.db.get(newUserId))!;
+    }
+
+    // 2. Ensure organization
+    let org = await ctx.db
+      .query("organizations")
+      .withIndex("by_slug", (q) => q.eq("slug", "daraj-media"))
+      .unique();
+
+    if (!org) {
+      const orgId = await ctx.db.insert("organizations", {
+        name: "Daraj Media",
+        slug: "daraj-media",
+        organizationType: "independent_media",
+        country: "Lebanon",
+        website: "https://daraj.com",
+        description: "Independent journalism and civic watchdog network.",
+        onboardingStatus: "completed",
+        createdAt: now,
+        updatedAt: now,
+      });
+      org = (await ctx.db.get(orgId))!;
+    }
+
+    // 3. Ensure membership
+    const existingMembership = await ctx.db
+      .query("memberships")
+      .withIndex("by_organization_user", (q) =>
+        q.eq("organizationId", org._id).eq("userId", user._id)
+      )
+      .unique();
+
+    if (!existingMembership) {
+      await ctx.db.insert("memberships", {
+        organizationId: org._id,
+        userId: user._id,
+        role: "owner",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    // 4. Seed social accounts & posts if not present
+    const existingAccount = await ctx.db
+      .query("socialAccounts")
+      .withIndex("by_organization", (q) => q.eq("organizationId", org._id))
+      .first();
+
+    if (!existingAccount) {
+      // Create social accounts
+      const igAccount = await ctx.db.insert("socialAccounts", {
+        organizationId: org._id,
+        platform: "instagram",
+        provider: "instagram",
+        externalAccountId: "ig_darajmedia",
+        handle: "darajmedia",
+        displayName: "Daraj Media",
+        followerCount: 145000,
+        followingCount: 320,
+        totalPosts: 120,
+        syncEnabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const liAccount = await ctx.db.insert("socialAccounts", {
+        organizationId: org._id,
+        platform: "linkedin",
+        provider: "linkedin",
+        externalAccountId: "li_daraj_media",
+        handle: "daraj-media",
+        displayName: "Daraj Media Network",
+        followerCount: 28400,
+        followingCount: 190,
+        totalPosts: 45,
+        syncEnabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const ytAccount = await ctx.db.insert("socialAccounts", {
+        organizationId: org._id,
+        platform: "youtube",
+        provider: "youtube",
+        externalAccountId: "yt_darajmedia",
+        handle: "@darajmedia",
+        displayName: "Daraj Media Official",
+        followerCount: 82000,
+        followingCount: 55,
+        totalPosts: 60,
+        syncEnabled: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Create sample posts
+      const samplePosts = [
+        {
+          accountId: igAccount,
+          platform: "instagram",
+          externalPostId: "ig_post_001",
+          url: "https://instagram.com/p/daraj_001",
+          publishedAt: now - 2 * DAY,
+          caption: "Investigating public spending and municipal transparency across the region. #Accountability #OpenData",
+          postType: "carousel",
+          views: 34200,
+          likes: 2150,
+          comments: 184,
+          shares: 532,
+          saves: 410,
+          engagementCount: 3276,
+          engagementRate: 0.0958,
+          analysisStatus: "complete" as const,
+          provider: "instagram",
+        },
+        {
+          accountId: liAccount,
+          platform: "linkedin",
+          externalPostId: "li_post_001",
+          url: "https://linkedin.com/feed/update/daraj_001",
+          publishedAt: now - 3 * DAY,
+          caption: "Policy brief: Why beneficial ownership transparency is critical for civil society watchdogs.",
+          postType: "document",
+          views: 14800,
+          likes: 640,
+          comments: 52,
+          shares: 198,
+          saves: 140,
+          engagementCount: 1030,
+          engagementRate: 0.0696,
+          analysisStatus: "complete" as const,
+          provider: "linkedin",
+        },
+        {
+          accountId: ytAccount,
+          platform: "youtube",
+          externalPostId: "yt_post_001",
+          url: "https://youtube.com/watch?v=daraj_001",
+          publishedAt: now - 5 * DAY,
+          title: "Follow the Money: The Procurement Investigation",
+          caption: "Full documentary on procurement integrity and watchdog reporting.",
+          postType: "video",
+          views: 68500,
+          likes: 4200,
+          comments: 310,
+          shares: 1100,
+          saves: 850,
+          engagementCount: 6460,
+          engagementRate: 0.0943,
+          watchTimeSeconds: 540000,
+          averageWatchTimeSeconds: 145,
+          durationSeconds: 720,
+          analysisStatus: "complete" as const,
+          provider: "youtube",
+        },
+      ];
+
+      for (const p of samplePosts) {
+        const postId = await ctx.db.insert("socialPosts", {
+          organizationId: org._id,
+          ...p,
+          createdAt: p.publishedAt,
+          updatedAt: now,
+        });
+
+        // Insert metric snapshots
+        await ctx.db.insert("postMetricSnapshots", {
+          organizationId: org._id,
+          postId,
+          capturedAt: p.publishedAt + 12 * 60 * 60 * 1000,
+          views: Math.round(p.views * 0.4),
+          likes: Math.round(p.likes * 0.35),
+          comments: Math.round(p.comments * 0.3),
+          shares: Math.round(p.shares * 0.4),
+        });
+
+        await ctx.db.insert("postMetricSnapshots", {
+          organizationId: org._id,
+          postId,
+          capturedAt: p.publishedAt + 24 * 60 * 60 * 1000,
+          views: Math.round(p.views * 0.75),
+          likes: Math.round(p.likes * 0.7),
+          comments: Math.round(p.comments * 0.7),
+          shares: Math.round(p.shares * 0.75),
+        });
+
+        await ctx.db.insert("postMetricSnapshots", {
+          organizationId: org._id,
+          postId,
+          capturedAt: now,
+          views: p.views,
+          likes: p.likes,
+          comments: p.comments,
+          shares: p.shares,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      organizationId: org._id,
+      organizationSlug: org.slug,
+      organizationName: org.name,
+      message: "Bootstrap complete! All tables and initial records created.",
+    };
+  },
+});

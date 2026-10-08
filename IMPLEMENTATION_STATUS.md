@@ -315,11 +315,71 @@ Last updated: 2026-10-06
   - 7 unit tests covering YouTube connector attributes, account formatting, long-form and short-form content normalization, metrics extraction, and formula integrity
   - Full suite: **35/35 passing unit tests** across auth, CSV importer, and platform connectors
 
+### Phase 11 — Social Analytics & Post-Level Intelligence (Master Build Specification)
+- [x] **Core Product Architecture:**
+  - Strict post-first hierarchy: *Organization → Social Account → Individual Posts → Metric Snapshots → Content Analysis → Campaigns → Aggregated Platform Analytics → AI Insights*
+  - First-class database tables in Convex ([`convex/schema.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/schema.ts)):
+    - `socialAccounts`: platform (`instagram`, `linkedin`, `tiktok`, `youtube`, `x`), handles, metadata, sync status
+    - `socialPosts`: external post identity, metrics, calculated engagement rate & basis, benchmarks, raw provider preservation
+    - `postMetricSnapshots`: granular immutable timestamped snapshots for tracking performance over time
+    - `syncJobs`: background ingestion status (`queued`, `running`, `complete`, `failed`), progress tallies, restartable cursors
+    - `postAnalysis`: AI content classification schema (topics, formats, hooks, CTAs, narrative styles, editorial flags)
+    - `campaigns` & `campaignContent`: thematic campaign portfolios and cross-platform post aggregations
+    - `impactEvents` & `impactEvidence`: foundational tables for future policy/media contribution linkage
+- [x] **Social Provider Abstraction & SocialCrawl Adapter:**
+  - TypeScript contracts ([`lib/social/types.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/social/types.ts)): `SocialProvider`, `NormalizedProfile`, `NormalizedSocialPost`, `NormalizedMetrics`
+  - SocialCrawl primary adapter ([`lib/social/providers/socialcrawl.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/social/providers/socialcrawl.ts)): live REST API client with offline sandbox fallback, pagination, error recovery, and raw payload retention
+- [x] **Deterministic Analytics & Normalization Engine ([`lib/social/normalize.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/social/normalize.ts)):**
+  - **Rule 46 Strict Missing Data:** `undefined` is never coerced to `0`
+  - **Rule 17 Explicit Rate Basis:** Rate calculation records basis hierarchy (`impressions` → `reach` → `views` → `followers`)
+  - Outlier-resistant account medians, percentiles, and percentage delta calculations
+- [x] **Content Explorer & Drilldown ([`app/(app)/[organizationSlug]/content/page.tsx`](file:///Users/louaimroueh/Desktop/Radar/app/(app)/[organizationSlug]/content/page.tsx)):**
+  - Table view and visual Cards view toggle
+  - Multi-parameter filtering: platform, format, minimum views, minimum engagement rate, search across titles & captions
+  - Sorting: newest, oldest, views, shares, comments, saves, engagement rate
+- [x] **Individual Post Intelligence Dossier ([`app/(app)/[organizationSlug]/content/[postId]/page.tsx`](file:///Users/louaimroueh/Desktop/Radar/app/(app)/[organizationSlug]/content/[postId]/page.tsx)):**
+  - Post header with publication date, campaign tag, format badge, and external link
+  - Current performance cards with explicit rate basis
+  - Performance Over Time chart ([`components/charts/post-snapshot-chart.tsx`](file:///Users/louaimroueh/Desktop/Radar/components/charts/post-snapshot-chart.tsx)) with metric toggles
+  - Historical benchmarks: views vs. account median %, shares vs. median %, comments vs. median %, percentile rank (e.g. *Top 5% of posts*)
+  - Content characteristics: topic, hook type, CTA, tone, editorial flags (contains statistic, quote, person, question)
+  - Radar Intelligence Insight narrative and testing recommendation
+  - Full provenance inspector (Rule 45): external post ID, provider, analysis version, sync timestamp
+- [x] **Dedicated Platform Dashboards ([`app/(app)/[organizationSlug]/social/[platform]/page.tsx`](file:///Users/louaimroueh/Desktop/Radar/app/(app)/[organizationSlug]/social/[platform]/page.tsx)):**
+  - Dedicated routes for Instagram, LinkedIn, TikTok, YouTube, X
+  - Channel KPIs: follower count, total posts, median views, median engagement, total shares
+  - Format performance breakdown (views and shares by format)
+  - Top performing posts and complete drilldown post table
+- [x] **Campaign Intelligence Dossier ([`app/(app)/[organizationSlug]/campaigns/[campaignId]/page.tsx`](file:///Users/louaimroueh/Desktop/Radar/app/(app)/[organizationSlug]/campaigns/[campaignId]/page.tsx)):**
+  - Dedicated campaign header with objectives, status badge, date range, and direct drilldown links from campaign portfolio cards
+  - Performance Scorecard: Total Posts, Cross-Platform Views, Total Amplification Shares, and Explicit Denominator Engagement Rate
+  - Platform distribution breakdown with platform icons and format breakdown pills
+  - Linked Posts Explorer with post table, format badges, views, shares, external post dossier link, and post unlinking action
+  - Post Association picker modal: Browse and link unlinked organization posts to the campaign
+  - Real-World Impact & Evidence Ladder (Section 36, 42-44): Verified policy changes, media mentions, institutional actions, citation snippets, external source links, and Rule 44 Impact Attribution Standard banner
+  - Interactive "Log Real-World Impact Evidence" modal
+- [x] **AI Content Analysis & Explanation Engine ([`lib/ai/`](file:///Users/louaimroueh/Desktop/Radar/lib/ai/)):**
+  - Structured types & category definitions ([`lib/ai/types.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/ai/types.ts)): Standardized content purposes, hook types, CTA types, tone adjectives, and editorial flags
+  - Section 29 & 30 System Prompts ([`lib/ai/prompts.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/ai/prompts.ts)): Objective content classification isolated from performance judgment; evidence-based explanations grounded strictly in account medians and percentiles
+  - Dual-mode AI Service ([`lib/ai/service.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/ai/service.ts)): Live OpenAI `gpt-4o-mini` structured JSON output with offline deterministic heuristic fallback for seamless sandbox development
+  - Convex AI Analysis API ([`convex/aiAnalysis.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/aiAnalysis.ts)): Mutations and queries for saving post analyses and listing unanalyzed posts with Rule 45 versioning (`analysisVersion: "post-analysis-v1"`)
+- [x] **Scrapling Impact Extraction Service ([`services/scraper/`](file:///Users/louaimroueh/Desktop/Radar/services/scraper/) & [`lib/impact/scrapling.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/impact/scrapling.ts)):**
+  - Section 40 & 41 Python FastAPI extraction microservice exposing authenticated `POST /extract`
+  - TypeScript client adapter with URL sanitization and offline fallback
+- [x] **Report Pipeline Social & Campaign Integration ([`convex/reports.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/reports.ts) & [`components/reports/report-generator-modal.tsx`](file:///Users/louaimroueh/Desktop/Radar/components/reports/report-generator-modal.tsx)):**
+  - `createReport` mutation aggregates both `socialPosts` and legacy `contentItems` into frozen KPI scorecards, Content Highlights, and Executive Summary narratives
+  - Campaign selector in report generation wizard with focused campaign retrospective snapshotting
+- [x] **Seed Dataset Expansion ([`convex/seedSocial.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/seedSocial.ts)):**
+  - 1-click seed populates 4 social accounts, 110+ posts across formats, multi-interval snapshots, 2 strategic campaigns, and 3 verified real-world impact events with legislative/media evidence citations
+- [x] **Unit Testing Suite:**
+  - 25 tests across providers, post analytics, and AI intelligence services ([`tests/ai-service.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/ai-service.test.ts), [`tests/social-posts.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/social-posts.test.ts), [`tests/social-provider.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/social-provider.test.ts))
+  - Full suite: **60/60 passing unit tests**
+
 ## Verification Status
 - `npm run typecheck`: **PASSED** (0 errors)
 - `npm run lint`: **PASSED** (0 errors, 0 warnings)
-- `npm test`: **PASSED** (35/35 tests passing)
-- `npm run build`: **PASSED** (production bundle generated with all static and dynamic routes)
+- `npm test`: **PASSED** (60/60 tests passing)
+- `npm run build`: **PASSED** (Next.js production build succeeded with all static and dynamic App Router routes including `/[organizationSlug]/campaigns/[campaignId]`)
 
 ## In Progress
 
@@ -327,17 +387,16 @@ None.
 
 ## Next
 
-All 11 MVP Phases (Phases 0 through 10) are 100% complete, verified, and operational. Ready for deployment and pilot onboarding.
-
-## Known Limitations
-- Invitation tokens currently displayed/logged for manual sharing; SMTP/email service to be integrated later
-- Convex `CLERK_JWT_ISSUER_DOMAIN` is configured for local backend development; production deployment will use production Clerk domain
+All social analytics, post-level intelligence, campaign aggregation, AI content classification, and impact evidence pipelines are fully operational, tested, and verified.
 
 ## Important Architectural Decisions
 
-1. **Client-side Organization Context:** Dedicated `components/organization-context.tsx` module for `OrganizationProvider` and `useOrganization`, cleanly separating Next.js App Router layout exports from custom React hooks.
-2. **User sync approach:** User profile sync runs via `getOrCreateUser` upon sign-in. This avoids immediate external webhook setup during early MVP development while maintaining consistent `users` records in Convex.
-3. **Multi-tenancy boundary:** All organization data operations require explicit `organizationId` matching and role verification via centralized server-side helpers in `convex/lib/auth.ts`. Knowing a record ID never bypasses membership checks.
-4. **Auditability:** Consequential administrative and member operations write immutable events to `auditEvents` via `logAuditEvent`.
-5. **Snapshot immutability:** Reports store frozen query snapshots in `reportBlocks.snapshotData`, guaranteeing historical reproducibility.
-6. **Build tooling:** Configured Next.js build script to use `--webpack` for reliable compilation with PostCSS and Tailwind v4.
+1. **Post-first model:** Every post is a discrete database record in `socialPosts`. Dashboard statistics and platform averages are calculated dynamically from underlying posts.
+2. **Missing data distinction (Rule 46):** `undefined` is strictly preserved to denote absent metrics from platforms/providers rather than false zeros.
+3. **Transparent rate basis (Rule 17):** Derived rates record their denominator basis (`impressions`, `reach`, `views`, or `followers`) so analysts know the exact calculation method.
+4. **Outlier resistance (Rule 18):** Medians are used rather than averages to ensure viral outliers do not distort account benchmarks.
+5. **Decoupled providers:** `SocialCrawlProvider` sits cleanly behind the `SocialProvider` interface, allowing Apify or official APIs to plug in seamlessly.
+6. **Immutable snapshots:** `postMetricSnapshots` preserves performance snapshots across time for velocity analysis.
+7. **Rule 44 Impact Attribution Standard:** Clear separation between correlated communications reach and verified external institutional/media uptakes, avoiding unfounded causal attribution.
+
+

@@ -1,31 +1,50 @@
 import Link from "next/link";
+import { Special_Elite } from "next/font/google";
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+
+import { LighthouseScene } from "@/components/landing/lighthouse-scene";
+import { LANDING_PARTNERS } from "@/lib/landing/partners";
+
+const typewriter = Special_Elite({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-2xl text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-          Radar
-        </h1>
-        <p className="mt-6 text-lg leading-8 text-[var(--muted-foreground)]">
-          Understand what your organization produced, who it reached,
-          how audiences responded, and what real-world changes occurred.
+    <main className={`relative flex min-h-screen flex-col bg-black ${typewriter.className}`}>
+      <header className="absolute inset-x-0 top-0 z-40 flex h-16 items-center justify-between px-6 text-sm text-neutral-300">
+        <span className="tracking-[0.3em] text-neutral-500">manara</span>
+        <nav className="flex items-center gap-6">
+          <Show when="signed-out">
+            <SignInButton mode="modal" fallbackRedirectUrl="/~/select-org">
+              <button className="cursor-pointer transition-colors hover:text-white">&gt; sign in</button>
+            </SignInButton>
+            <SignUpButton mode="modal" fallbackRedirectUrl="/~/select-org">
+              <button className="cursor-pointer border border-neutral-600 px-3 py-1.5 transition-colors hover:border-white hover:text-white">
+                create account
+              </button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <Link href="/~/select-org" className="transition-colors hover:text-white">
+              &gt; open workspace
+            </Link>
+            <UserButton />
+          </Show>
+        </nav>
+      </header>
+
+      <LighthouseScene partners={LANDING_PARTNERS} fontClassName={typewriter.className}>
+        <h1 className="text-5xl tracking-[0.18em] text-white sm:text-6xl">manara</h1>
+        <p lang="ar" dir="rtl" className="mt-2 font-sans text-lg text-neutral-500">
+          منارة
         </p>
-        <div className="mt-10 flex items-center justify-center gap-x-6">
-          <Link
-            href="/sign-in"
-            className="rounded-lg bg-[var(--primary)] px-6 py-3 text-sm font-semibold text-[var(--primary-foreground)] hover:opacity-90 transition-opacity"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/sign-up"
-            className="text-sm font-semibold leading-6 hover:opacity-70 transition-opacity"
-          >
-            Create account →
-          </Link>
-        </div>
-      </div>
-    </div>
+        <p className="mt-6 max-w-md text-sm leading-6 text-neutral-400">
+          Shedding light on the work of independent media and civil society across the Middle East &amp; North Africa.
+        </p>
+      </LighthouseScene>
+    </main>
   );
 }

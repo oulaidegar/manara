@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Target,
   FileText,
-  Upload,
   BarChart2,
   TrendingUp,
   BookmarkCheck,
@@ -30,6 +29,7 @@ export default function OrganizationHomePage() {
 
   const briefing = useQuery(api.analytics.getBriefingData, { organizationId });
   const seedDemo = useMutation(api.seed.seedDemoData);
+  const seedSocial = useMutation(api.seedSocial.seedSocialData);
   const [isSeeding, setIsSeeding] = useState(false);
 
   const greetingName = user?.firstName ?? user?.fullName ?? "there";
@@ -47,6 +47,18 @@ export default function OrganizationHomePage() {
       alert(res.message || "Demo dataset loaded successfully!");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to seed demo data");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleSeedSocial = async () => {
+    setIsSeeding(true);
+    try {
+      const res = await seedSocial({ organizationId });
+      alert(`Social Intelligence Seeded! Created ${res.accountsCreated} accounts and ${res.postsCreated} posts.`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to seed social dataset");
     } finally {
       setIsSeeding(false);
     }
@@ -76,6 +88,17 @@ export default function OrganizationHomePage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {canSeed && (
+            <button
+              onClick={handleSeedSocial}
+              disabled={isSeeding}
+              className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
+            >
+              {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+              <span>{isSeeding ? "Seeding..." : "Seed Social Intelligence (110+ Posts)"}</span>
+            </button>
+          )}
+
           {!hasData && canSeed && (
             <button
               onClick={handleSeedDemo}
@@ -83,23 +106,16 @@ export default function OrganizationHomePage() {
               className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3.5 py-2 text-sm font-semibold text-amber-900 dark:text-amber-200 hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-              <span>{isSeeding ? "Seeding..." : "Load Demo Dataset (100+ items)"}</span>
+              <span>{isSeeding ? "Seeding..." : "Load General Demo Data"}</span>
             </button>
           )}
 
           <Link
-            href={`/${organizationSlug}/reports`}
-            className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3.5 py-2 text-sm font-medium hover:bg-[var(--muted)] transition-colors"
+            href={`/${organizationSlug}/content`}
+            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90 transition-opacity shadow-xs"
           >
-            <FileText className="h-4 w-4 text-[var(--muted-foreground)]" />
-            <span>Reports</span>
-          </Link>
-          <Link
-            href={`/${organizationSlug}/analyze`}
-            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90 transition-opacity"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Explore Data</span>
+            <BarChart2 className="h-4 w-4" />
+            <span>Content Explorer</span>
           </Link>
         </div>
       </div>

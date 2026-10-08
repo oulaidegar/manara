@@ -42,3 +42,28 @@ body {
   color: var(--foreground);
   font-family: inherit;
 }
+
+/* ---- Manara landing ---- */
+.manara-cursor {
+  animation: manara-blink 0.9s steps(1) infinite;
+}
+@keyframes manara-blink {
+  50% { visibility: hidden; }
+}
+.manara-lamp {
+  filter: drop-shadow(0 0 6px rgba(255, 236, 196, 0.9));
+}
+.manara-wave {
+  animation: manara-drift 6s ease-in-out infinite alternate;
+}
+.manara-wave--slow {
+  animation-duration: 8s;
+  animation-direction: alternate-reverse;
+}
+@keyframes manara-drift {
+  from { transform: translateX(-6px); }
+  to { transform: translateX(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manara-cursor, .manara-wave { animation: none; }
+}

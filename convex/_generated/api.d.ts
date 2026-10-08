@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as aiAnalysis from "../aiAnalysis.js";
 import type * as analytics from "../analytics.js";
+import type * as campaigns from "../campaigns.js";
 import type * as connectors_accounts from "../connectors/accounts.js";
 import type * as connectors_linkedin_index from "../connectors/linkedin/index.js";
 import type * as connectors_meta_index from "../connectors/meta/index.js";
@@ -28,9 +30,16 @@ import type * as metrics from "../metrics.js";
 import type * as organizations_members from "../organizations/members.js";
 import type * as organizations_mutations from "../organizations/mutations.js";
 import type * as organizations_queries from "../organizations/queries.js";
+import type * as platformAnalytics from "../platformAnalytics.js";
+import type * as postMetricSnapshots from "../postMetricSnapshots.js";
 import type * as practices from "../practices.js";
 import type * as reports from "../reports.js";
 import type * as seed from "../seed.js";
+import type * as seedSocial from "../seedSocial.js";
+import type * as socialAccounts from "../socialAccounts.js";
+import type * as socialPosts from "../socialPosts.js";
+import type * as socialSync from "../socialSync.js";
+import type * as syncJobs from "../syncJobs.js";
 import type * as tags from "../tags.js";
 import type * as users from "../users.js";
 
@@ -41,7 +50,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiAnalysis: typeof aiAnalysis;
   analytics: typeof analytics;
+  campaigns: typeof campaigns;
   "connectors/accounts": typeof connectors_accounts;
   "connectors/linkedin/index": typeof connectors_linkedin_index;
   "connectors/meta/index": typeof connectors_meta_index;
@@ -61,9 +72,16 @@ declare const fullApi: ApiFromModules<{
   "organizations/members": typeof organizations_members;
   "organizations/mutations": typeof organizations_mutations;
   "organizations/queries": typeof organizations_queries;
+  platformAnalytics: typeof platformAnalytics;
+  postMetricSnapshots: typeof postMetricSnapshots;
   practices: typeof practices;
   reports: typeof reports;
   seed: typeof seed;
+  seedSocial: typeof seedSocial;
+  socialAccounts: typeof socialAccounts;
+  socialPosts: typeof socialPosts;
+  socialSync: typeof socialSync;
+  syncJobs: typeof syncJobs;
   tags: typeof tags;
   users: typeof users;
 }>;
