@@ -375,28 +375,70 @@ Last updated: 2026-10-06
   - 25 tests across providers, post analytics, and AI intelligence services ([`tests/ai-service.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/ai-service.test.ts), [`tests/social-posts.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/social-posts.test.ts), [`tests/social-provider.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/social-provider.test.ts))
   - Full suite: **60/60 passing unit tests**
 
+### Phase 12 — Public-Interest Operating System (Pillars 1 & 3: PIEI, Micro-Taxonomy, Quick Ingest, Feed Grid & Power Table)
+- [x] **Public-Interest Engagement Index (PIEI) Engine ([`lib/social/normalize.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/social/normalize.ts), [`convex/schema.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/schema.ts)):**
+  - Weighted impact score prioritizing civic conviction & evidence archiving:
+    $$\text{PIEI} = \frac{(\text{Saves} \times 5) + (\text{Shares} \times 3) + (\text{Comments} \times 2) + (\text{Likes} \times 1)}{\text{Denominator}} \times 100$$
+  - Strict Rule 17 denominator basis hierarchy (`reach` → `impressions` → `views` → `interactions` → `followers`).
+  - Conviction Tier classification (`exceptional` for PIEI $\ge 25$ / Top 5%, `high` for $\ge 12$, `moderate` for $\ge 5$, `baseline`).
+  - 24h Velocity Ratio (`velocityRatio24h`) tracking first-day exposure vs. total 7-day tail.
+  - Evergreen Tail Index (`isEvergreen`, `evergreenScore`) detecting sustained shares, saves, and views $> 14$ days post-publication.
+- [x] **Micro-Format Taxonomy Expansion ([`lib/ai/types.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/ai/types.ts), [`lib/ai/service.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/ai/service.ts)):**
+  - Granular hook types: `document_scan` / `leaked_record`, `shock_statistic`, `open_question`, `direct_quote`, `breaking_news`, `strong_claim`, `personal_story`.
+  - Micro-action CTAs: `read_investigation`, `sign_petition`, `archive_save`, `share`, `comment`.
+  - Carousel slide brackets (`3-5 slides`, `6-10 slides`, `10+ slides`) and video length brackets (`<30s`, `30-90s`, `>3min`).
+- [x] **Universal Quick-Paste Bar ([`components/social/quick-paste-bar.tsx`](file:///Users/louaimroueh/Desktop/Radar/components/social/quick-paste-bar.tsx), [`lib/social/quick-ingest.ts`](file:///Users/louaimroueh/Desktop/Radar/lib/social/quick-ingest.ts)):**
+  - Zero-friction link paste bar supporting Instagram, YouTube, X, TikTok, and LinkedIn.
+  - Instant live platform detection badge as the user types or pastes.
+  - Next.js server route ([`app/api/quick-ingest/route.ts`](file:///Users/louaimroueh/Desktop/Radar/app/api/quick-ingest/route.ts)) extracting metadata and executing deterministic AI micro-taxonomy.
+  - Convex mutation ([`convex/quickIngest.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/quickIngest.ts)) with automated account linking, initial metric snapshot, and audit logging.
+  - Interactive preview card displaying extracted post title, computed PIEI score badge, conviction tier, and 1-click drilldown to post dossier.
+  - Mounted globally in App Header ([`components/layout/app-header.tsx`](file:///Users/louaimroueh/Desktop/Radar/components/layout/app-header.tsx)) and featured in Content Explorer.
+- [x] **Dual-View Content Explorer Upgrade ([`app/(app)/[organizationSlug]/content/page.tsx`](file:///Users/louaimroueh/Desktop/Radar/app/(app)/[organizationSlug]/content/page.tsx)):**
+  - **Visual Feed Grid View:**
+    - Social feed & media cards with aspect-ratio visual banner and platform badges.
+    - Floating PIEI Score Badges with formula hover tooltips (`PIEI = (Saves×5 + Shares×3 + Comments×2 + Likes×1) / Reach * 100`).
+    - Plain-Language Insight Pills (`Top 5% Conviction`, `High Archive Rate`, `Amplification Magnet`).
+    - Evergreen badges identifying posts with staying power $> 14$ days.
+    - High-conviction metrics row highlighting saves (5x, purple) and amplification shares (3x, emerald).
+    - Micro-taxonomy pills (Hook type, CTA, format brackets).
+  - **Power Table View:**
+    - Dense spreadsheet table with sorting by PIEI score, saves, shares, views, and date.
+    - Multi-parameter filtering by platform, content format, hook type, conviction tier, and evergreen status.
+- [x] **Individual Post Dossier Integration ([`app/(app)/[organizationSlug]/content/[postId]/page.tsx`](file:///Users/louaimroueh/Desktop/Radar/app/(app)/[organizationSlug]/content/[postId]/page.tsx)):**
+  - Dedicated Public-Interest Engagement Index card detailing the 5x / 3x / 2x / 1x weighted action breakdown.
+  - 24h Velocity Ratio indicator and Evergreen Tail Index longevity banner.
+- [x] **Seed Dataset Enrichment ([`convex/seedSocial.ts`](file:///Users/louaimroueh/Desktop/Radar/convex/seedSocial.ts)):**
+  - All 110 seeded posts populated with PIEI scores, conviction tiers, evergreen flags, and micro-taxonomy hook tags.
+- [x] **Unit & Integration Testing Suite ([`tests/quick-ingest.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/quick-ingest.test.ts), [`tests/social-posts.test.ts`](file:///Users/louaimroueh/Desktop/Radar/tests/social-posts.test.ts)):**
+  - 8 new unit tests covering PIEI weighting math, conviction tiers, URL parsing across all platforms, and quick ingest pipeline.
+  - Full suite: **68/68 passing unit tests** across 7 test files.
+
 ## Verification Status
 - `npm run typecheck`: **PASSED** (0 errors)
 - `npm run lint`: **PASSED** (0 errors, 0 warnings)
-- `npm test`: **PASSED** (60/60 tests passing)
-- `npm run build`: **PASSED** (Next.js production build succeeded with all static and dynamic App Router routes including `/[organizationSlug]/campaigns/[campaignId]`)
+- `npm test`: **PASSED** (68/68 tests passing)
+- `npm run build`: **PASSED** (Next.js production build succeeded with all static and dynamic App Router routes including `/api/quick-ingest` and `/[organizationSlug]/content/[postId]`)
 
 ## In Progress
 
 None.
 
 ## Next
-
-All social analytics, post-level intelligence, campaign aggregation, AI content classification, and impact evidence pipelines are fully operational, tested, and verified.
+- Pillar 2: One-Click "Donor Grant Impact Dossier" Generator (PDF/print export for NED, Open Society, EED).
+- Pillar 2: Cross-Platform Narrative Ripple Timeline (tracking story diffusion from investigation to TV/citations).
+- Pillar 2: Empirical Hypothesis Testing (evaluating editorial assumptions against historical tagged post cohorts).
 
 ## Important Architectural Decisions
 
 1. **Post-first model:** Every post is a discrete database record in `socialPosts`. Dashboard statistics and platform averages are calculated dynamically from underlying posts.
 2. **Missing data distinction (Rule 46):** `undefined` is strictly preserved to denote absent metrics from platforms/providers rather than false zeros.
 3. **Transparent rate basis (Rule 17):** Derived rates record their denominator basis (`impressions`, `reach`, `views`, or `followers`) so analysts know the exact calculation method.
-4. **Outlier resistance (Rule 18):** Medians are used rather than averages to ensure viral outliers do not distort account benchmarks.
-5. **Decoupled providers:** `SocialCrawlProvider` sits cleanly behind the `SocialProvider` interface, allowing Apify or official APIs to plug in seamlessly.
-6. **Immutable snapshots:** `postMetricSnapshots` preserves performance snapshots across time for velocity analysis.
-7. **Rule 44 Impact Attribution Standard:** Clear separation between correlated communications reach and verified external institutional/media uptakes, avoiding unfounded causal attribution.
+4. **Public-Interest Engagement Index (PIEI):** Separates high-conviction accountability archiving (saves = 5x) and civic diffusion (shares = 3x) from vanity likes (1x).
+5. **Outlier resistance (Rule 18):** Medians are used rather than averages to ensure viral outliers do not distort account benchmarks.
+6. **Decoupled providers:** `SocialCrawlProvider` sits cleanly behind the `SocialProvider` interface, allowing Apify or official APIs to plug in seamlessly.
+7. **Immutable snapshots:** `postMetricSnapshots` preserves performance snapshots across time for velocity and evergreen longevity analysis.
+8. **Rule 44 Impact Attribution Standard:** Clear separation between correlated communications reach and verified external institutional/media uptakes, avoiding unfounded causal attribution.
+
 
 

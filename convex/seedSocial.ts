@@ -251,14 +251,27 @@ export const seedSocialData = mutation({
       const likes = Math.round(baseViews * (0.028 + (i % 3) * 0.007));
       const comments = Math.round(likes * 0.065);
       const shares = Math.round(likes * (archetype.format === "explainer" || archetype.format === "video" ? 0.32 : 0.16));
-      const saves = platform === "instagram" ? Math.round(likes * 0.19) : undefined;
+      const saves = Math.round(likes * (archetype.format === "explainer" || archetype.format === "carousel" ? 0.28 : 0.15));
       const clicks = Math.round(likes * 0.14);
 
-      const engagementCount = likes + comments + shares + (saves ?? 0) + clicks;
+      const engagementCount = likes + comments + shares + saves + clicks;
       const engagementRate = Number((engagementCount / impressions).toFixed(4));
       const shareRate = Number((shares / baseViews).toFixed(4));
       const commentRate = Number((comments / baseViews).toFixed(4));
-      const saveRate = saves ? Number((saves / baseViews).toFixed(4)) : undefined;
+      const saveRate = Number((saves / baseViews).toFixed(4));
+
+      // Public-Interest Engagement Index (Pillar 1)
+      const weightedScore = (saves * 5) + (shares * 3) + (comments * 2) + (likes * 1);
+      const pieiScore = Number(((weightedScore / reach) * 100).toFixed(2));
+      let convictionTier: "exceptional" | "high" | "moderate" | "baseline" = "baseline";
+      if (pieiScore >= 25) convictionTier = "exceptional";
+      else if (pieiScore >= 12) convictionTier = "high";
+      else if (pieiScore >= 5) convictionTier = "moderate";
+
+      const postAgeDays = (now - publishedAt) / dayMs;
+      const isEvergreen = postAgeDays >= 14 && (saves >= 35 || shares >= 45 || (i % 4 === 0));
+      const evergreenScore = isEvergreen ? Number((pieiScore * 1.25).toFixed(1)) : undefined;
+      const velocityRatio24h = Math.round((Math.round(baseViews * 0.65) / baseViews) * 100);
 
       const postId = await ctx.db.insert("socialPosts", {
         organizationId: args.organizationId,
@@ -286,6 +299,12 @@ export const seedSocialData = mutation({
         shareRate,
         commentRate,
         saveRate,
+        pieiScore,
+        pieiBasis: "reach",
+        convictionTier,
+        isEvergreen,
+        evergreenScore,
+        velocityRatio24h,
         analysisStatus: "complete",
         lastMetricsSyncAt: now,
         provider: "socialcrawl",
@@ -342,6 +361,8 @@ export const seedSocialData = mutation({
         tone: archetype.tones,
         hookType: archetype.hook,
         ctaType: archetype.cta,
+        slideBracket: archetype.format === "carousel" ? "6-10 slides" : undefined,
+        videoLengthBracket: archetype.format === "video" || archetype.format === "reel" ? "30-90s" : undefined,
         targetAudience: "Advocacy professionals and policymaking bodies",
         narrativeStyle: "Evidence-first investigative explainer",
         containsStatistic: archetype.containsStatistic,
@@ -349,7 +370,7 @@ export const seedSocialData = mutation({
         containsPerson: archetype.containsPerson,
         containsQuestion: archetype.containsQuestion,
         summary: archetype.summary,
-        explanation: `This post delivered an engagement rate of ${(engagementRate * 100).toFixed(1)}%. It achieved substantial sharing density via a verified ${archetype.hook} hook and a clear call-to-action to ${archetype.cta}.`,
+        explanation: `This post delivered a Public-Interest Engagement Index (PIEI) of ${pieiScore}. It achieved substantial sharing & evidence archiving density via a verified ${archetype.hook} hook and a clear call-to-action to ${archetype.cta}.`,
         analysisVersion: "post-analysis-v1",
         analyzedAt: now,
       });

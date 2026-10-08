@@ -91,26 +91,57 @@ function heuristicAnalyzePost(
   const containsExternalLink = /https?:\/\/|link in bio|read full report/i.test(lower);
   const containsPerson = /minister|director|commissioner|mayor|official|dr\.|senator|deputy/i.test(lower);
 
-  // Hook
+  // Hook Type (Micro-Taxonomy)
   let hookType: HookType = "none";
-  if (containsQuestion && lower.startsWith("why") || lower.startsWith("how") || lower.startsWith("what") || lower.startsWith("can")) {
+  const opening = (input.title || text).trim().toLowerCase();
+
+  if (containsQuestion && (opening.startsWith("why") || opening.startsWith("how") || opening.startsWith("what") || opening.startsWith("can") || opening.startsWith("where") || opening.startsWith("who"))) {
     hookType = "question";
-  } else if (containsStatistic && /^\d|^\$|^over\s\d|^nearly\s\d/i.test(lower)) {
+  } else if (/document|leak|leaked|uncovered files|internal memo|audit report|confidential|dossier/i.test(opening)) {
+    hookType = "document_scan";
+  } else if (containsStatistic && (/shocking|astonishing|surge|overwhelming|massive|skyrocket|inflated/i.test(opening) || /^\d|^\$|^over\s\d|^nearly\s\d/i.test(opening))) {
+    hookType = "shock_statistic";
+  } else if (containsStatistic && /^\d|^\$|^over\s\d/i.test(lower)) {
     hookType = "statistic";
+  } else if (containsQuote && /^["'«»]/.test(opening)) {
+    hookType = "direct_quote";
   } else if (containsQuote) {
     hookType = "quote";
-  } else if (/urgent|breaking|just in|revealed/i.test(lower)) {
+  } else if (/urgent|breaking|just in|revealed/i.test(opening)) {
     hookType = "breaking_news";
+  } else if (containsQuestion) {
+    hookType = "question";
   }
 
-  // CTA
+  // CTA (Micro-Taxonomy)
   let ctaType: CtaType = "none";
-  if (/read more|link in bio|full investigation/i.test(lower)) ctaType = "read";
-  else if (/share this|repost|spread the word/i.test(lower)) ctaType = "share";
-  else if (/what do you think|comment below|thoughts\?/i.test(lower)) ctaType = "comment";
-  else if (/sign the petition|add your name/i.test(lower)) ctaType = "sign";
-  else if (/donate|support our work/i.test(lower)) ctaType = "donate";
-  else if (/register|sign up|join us/i.test(lower)) ctaType = "register";
+  if (/read investigation|read full investigation|full exposé|investigative dossier/i.test(lower)) {
+    ctaType = "read_investigation";
+  } else if (/read more|link in bio|full report|link below/i.test(lower)) {
+    ctaType = "read";
+  } else if (/sign the petition|sign our petition|add your name|demand accountability/i.test(lower)) {
+    ctaType = "sign_petition";
+  } else if (/save this|bookmark|save for reference|archive this/i.test(lower)) {
+    ctaType = "archive_save";
+  } else if (/share this|repost|spread the word|amplify/i.test(lower)) {
+    ctaType = "share";
+  } else if (/what do you think|comment below|thoughts\?|tell us/i.test(lower)) {
+    ctaType = "comment";
+  } else if (/donate|support our work/i.test(lower)) {
+    ctaType = "donate";
+  } else if (/register|sign up|join us/i.test(lower)) {
+    ctaType = "register";
+  }
+
+  // Length / Slide Brackets
+  let slideBracket: string | undefined = undefined;
+  let videoLengthBracket: string | undefined = undefined;
+  const postFormat = input.postType || "post";
+  if (postFormat === "carousel") {
+    slideBracket = "6-10 slides";
+  } else if (postFormat === "video" || postFormat === "reel") {
+    videoLengthBracket = "30-90s";
+  }
 
   // Purpose
   let contentPurpose: ContentPurpose = "education";
@@ -132,11 +163,13 @@ function heuristicAnalyzePost(
   return {
     primaryTopic: topics[0],
     topics,
-    contentFormat: input.postType || "post",
+    contentFormat: postFormat,
     contentPurpose,
     tone: containsStatistic ? ["analytical", "informative"] : ["advocacy", "engaging"],
     hookType,
     ctaType,
+    slideBracket,
+    videoLengthBracket,
     targetAudience: "Civic Observers & Affected Communities",
     narrativeStyle: containsStatistic ? "evidence_first" : "narrative_explainer",
     containsStatistic,

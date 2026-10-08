@@ -33,6 +33,7 @@ import type * as organizations_queries from "../organizations/queries.js";
 import type * as platformAnalytics from "../platformAnalytics.js";
 import type * as postMetricSnapshots from "../postMetricSnapshots.js";
 import type * as practices from "../practices.js";
+import type * as quickIngest from "../quickIngest.js";
 import type * as reports from "../reports.js";
 import type * as seed from "../seed.js";
 import type * as seedSocial from "../seedSocial.js";
@@ -75,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   platformAnalytics: typeof platformAnalytics;
   postMetricSnapshots: typeof postMetricSnapshots;
   practices: typeof practices;
+  quickIngest: typeof quickIngest;
   reports: typeof reports;
   seed: typeof seed;
   seedSocial: typeof seedSocial;

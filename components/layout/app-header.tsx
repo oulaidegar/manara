@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
+import { QuickPasteBar } from "@/components/social/quick-paste-bar";
 
 type AppHeaderProps = {
   onMenuClick?: () => void;
@@ -45,6 +46,11 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           <ChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
           <span className="font-semibold text-[var(--foreground)]">{title}</span>
         </nav>
+      </div>
+
+      {/* Center: Universal Quick Ingest Bar (Pillar 3) */}
+      <div className="hidden md:flex flex-1 max-w-md mx-6">
+        <QuickPasteBar compact className="w-full" />
       </div>
 
       {/* Right: Freshness badge, notifications, and profile */}

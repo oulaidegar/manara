@@ -1,15 +1,12 @@
 import Link from "next/link";
-import { Special_Elite } from "next/font/google";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
 import { LighthouseScene } from "@/components/landing/lighthouse-scene";
 import { LANDING_PARTNERS } from "@/lib/landing/partners";
 
-const typewriter = Special_Elite({
-  weight: "400",
-  subsets: ["latin"],
-  display: "swap",
-});
+const typewriter = {
+  className: "font-mono",
+};
 
 export default function LandingPage() {
   return (

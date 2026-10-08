@@ -178,6 +178,9 @@ export function calculateEngagement(
       ? Number((metrics.views / followerCount).toFixed(4))
       : undefined;
 
+  // Public-Interest Engagement Index (PIEI) Calculation (Pillar 1)
+  const pieiResult = calculatePIEI(metrics, followerCount);
+
   return {
     engagementCount,
     engagementRate,
@@ -186,5 +189,169 @@ export function calculateEngagement(
     shareRate,
     commentRate,
     saveRate,
+    pieiScore: pieiResult.pieiScore,
+    pieiBasis: pieiResult.pieiBasis,
+    convictionTier: pieiResult.convictionTier,
+  };
+}
+
+/**
+ * Computes the Public-Interest Engagement Index (PIEI) (Pillar 1).
+ * Formula:
+ * PIEI = ((Saves * 5) + (Shares * 3) + (Comments * 2) + (Likes * 1)) / Denominator * 100
+ *
+ * Saves (5x): High-conviction evidence archiving and future reference.
+ * Shares (3x): Public amplification & civic distribution.
+ * Comments (2x): Deliberative civic discourse.
+ * Likes (1x): Standard passive validation.
+ */
+export function calculatePIEI(
+  metrics: NormalizedMetrics,
+  followerCount?: number
+): {
+  pieiScore?: number;
+  pieiBasis?: "reach" | "impressions" | "views" | "interactions" | "followers";
+  convictionTier?: "exceptional" | "high" | "moderate" | "baseline";
+  weightedScore?: number;
+} {
+  const hasInteractions =
+    metrics.saves !== undefined ||
+    metrics.shares !== undefined ||
+    metrics.comments !== undefined ||
+    metrics.likes !== undefined;
+
+  if (!hasInteractions) {
+    return {};
+  }
+
+  const weightedScore =
+    (metrics.saves ?? 0) * 5 +
+    (metrics.shares ?? 0) * 3 +
+    (metrics.comments ?? 0) * 2 +
+    (metrics.likes ?? 0) * 1;
+
+  // Explicit denominator hierarchy per Rule 17: Reach -> Impressions -> Views -> Interactions -> Followers
+  let denominator: number | undefined;
+  let pieiBasis: "reach" | "impressions" | "views" | "interactions" | "followers" | undefined;
+
+  if (metrics.reach && metrics.reach > 0) {
+    denominator = metrics.reach;
+    pieiBasis = "reach";
+  } else if (metrics.impressions && metrics.impressions > 0) {
+    denominator = metrics.impressions;
+    pieiBasis = "impressions";
+  } else if (metrics.views && metrics.views > 0) {
+    denominator = metrics.views;
+    pieiBasis = "views";
+  } else {
+    const rawInteractionSum =
+      (metrics.likes ?? 0) +
+      (metrics.comments ?? 0) +
+      (metrics.shares ?? 0) +
+      (metrics.saves ?? 0);
+    if (rawInteractionSum > 0) {
+      denominator = rawInteractionSum;
+      pieiBasis = "interactions";
+    } else if (followerCount && followerCount > 0) {
+      denominator = followerCount;
+      pieiBasis = "followers";
+    }
+  }
+
+  if (denominator === undefined || denominator <= 0) {
+    return { weightedScore };
+  }
+
+  const pieiScore = Number(((weightedScore / denominator) * 100).toFixed(2));
+
+  // Conviction tier classification based on public-interest benchmarks
+  let convictionTier: "exceptional" | "high" | "moderate" | "baseline" = "baseline";
+  if (pieiScore >= 25) {
+    convictionTier = "exceptional"; // Top 5%
+  } else if (pieiScore >= 12) {
+    convictionTier = "high"; // Top 20%
+  } else if (pieiScore >= 5) {
+    convictionTier = "moderate";
+  } else {
+    convictionTier = "baseline";
+  }
+
+  return {
+    pieiScore,
+    pieiBasis,
+    convictionTier,
+    weightedScore,
+  };
+}
+
+/**
+ * Computes 24h Velocity Ratio and Evergreen Tail Index (Pillar 1).
+ * - 24h Velocity Ratio: % of total views gained in first 24 hours.
+ * - Evergreen Tail Index: Flags posts that continue gathering shares, saves, and views > 14 days after publication.
+ */
+export function computePostLongevity(
+  publishedAt: number,
+  metrics: NormalizedMetrics,
+  snapshots?: Array<{ capturedAt: number; views?: number; shares?: number; saves?: number }>
+): {
+  velocityRatio24h?: number;
+  isEvergreen?: boolean;
+  evergreenScore?: number;
+} {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const postAgeDays = (now - publishedAt) / dayMs;
+
+  let velocityRatio24h: number | undefined;
+  let isEvergreen = false;
+  let evergreenScore: number | undefined;
+
+  const totalViews = metrics.views ?? metrics.impressions ?? metrics.reach;
+
+  // 1. Calculate 24h Velocity Ratio if snapshots exist
+  if (snapshots && snapshots.length > 1 && totalViews && totalViews > 0) {
+    const targetTime = publishedAt + dayMs;
+    // Find snapshot closest to +24 hours (within 12h-36h window)
+    const snapshot24h = snapshots.find(
+      (s) => Math.abs(s.capturedAt - targetTime) <= 12 * 60 * 60 * 1000
+    );
+
+    if (snapshot24h && snapshot24h.views !== undefined && snapshot24h.views > 0) {
+      velocityRatio24h = Math.min(100, Math.round((snapshot24h.views / totalViews) * 100));
+    }
+  }
+
+  // 2. Evergreen Tail Index (Pillar 1)
+  // Posts > 14 days old with sustained staying power (evidence archiving & amplification)
+  if (postAgeDays >= 14) {
+    const saves = metrics.saves ?? 0;
+    const shares = metrics.shares ?? 0;
+    const savesAndShares = saves + shares;
+
+    // Check if snapshots indicate post-14-day growth
+    let hasPost14DayGrowth = false;
+    if (snapshots && snapshots.length >= 2) {
+      const snap14d = snapshots.find((s) => s.capturedAt - publishedAt >= 13 * dayMs);
+      const latestSnap = snapshots[snapshots.length - 1];
+      if (snap14d && latestSnap && latestSnap.views && snap14d.views) {
+        if (latestSnap.views > snap14d.views * 1.1) {
+          hasPost14DayGrowth = true;
+        }
+      }
+    }
+
+    // High conviction archiving (saves >= 10 or saves+shares >= 25 or post-14d growth)
+    if (saves >= 10 || savesAndShares >= 25 || hasPost14DayGrowth) {
+      isEvergreen = true;
+      evergreenScore = Number(
+        Math.min(100, ((saves * 3 + shares * 2) / Math.max(1, totalViews ? totalViews / 100 : 1))).toFixed(1)
+      );
+    }
+  }
+
+  return {
+    velocityRatio24h,
+    isEvergreen,
+    evergreenScore,
   };
 }

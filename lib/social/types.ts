@@ -38,6 +38,19 @@ export type SyncJobStatus =
   | "complete"
   | "failed";
 
+export type PieiBasis =
+  | "reach"
+  | "impressions"
+  | "views"
+  | "interactions"
+  | "followers";
+
+export type ConvictionTier =
+  | "exceptional"
+  | "high"
+  | "moderate"
+  | "baseline";
+
 export interface NormalizedMetrics {
   views?: number;
   impressions?: number;
@@ -61,6 +74,13 @@ export interface CalculatedEngagement {
   shareRate?: number;
   commentRate?: number;
   saveRate?: number;
+  // Public-Interest Engagement Index (Pillar 1)
+  pieiScore?: number;
+  pieiBasis?: PieiBasis;
+  convictionTier?: ConvictionTier;
+  isEvergreen?: boolean;
+  evergreenScore?: number;
+  velocityRatio24h?: number;
 }
 
 export interface NormalizedProfile {
@@ -93,6 +113,10 @@ export interface NormalizedSocialPost {
   authorHandle?: string;
   metrics: NormalizedMetrics;
   calculatedMetrics?: CalculatedEngagement;
+  pieiScore?: number;
+  convictionTier?: ConvictionTier;
+  isEvergreen?: boolean;
+  velocityRatio24h?: number;
   provider: string;
   raw: unknown;
 }

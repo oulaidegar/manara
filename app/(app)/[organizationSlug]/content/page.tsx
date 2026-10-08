@@ -13,12 +13,24 @@ import {
   Plus,
   Eye,
   Share2,
+  Bookmark,
   TrendingUp,
+  Sparkles,
+  TreePine,
+  Filter,
 } from "lucide-react";
 import { ConnectAccountModal } from "@/components/social/connect-account-modal";
 import { PlatformIcon } from "@/components/social/platform-icon";
+import { QuickPasteBar } from "@/components/social/quick-paste-bar";
+import {
+  PieiBadge,
+  ConvictionPill,
+  EvergreenBadge,
+  MicroTaxonomyPill,
+} from "@/components/social/insight-pill";
 
 type SortOption =
+  | "pieiScore"
   | "newest"
   | "oldest"
   | "views"
@@ -31,11 +43,14 @@ type SortOption =
 
 export default function ContentExplorerPage() {
   const { organization, organizationSlug } = useOrganization();
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedFormat, setSelectedFormat] = useState<string>("all");
+  const [selectedHook, setSelectedHook] = useState<string>("all");
+  const [selectedTier, setSelectedTier] = useState<string>("all");
+  const [isEvergreenOnly, setIsEvergreenOnly] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [sortBy, setSortBy] = useState<SortOption>("pieiScore");
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
 
   const posts = useQuery(api.socialPosts.listSocialPosts, {
@@ -43,6 +58,9 @@ export default function ContentExplorerPage() {
     platform: selectedPlatform === "all" ? undefined : selectedPlatform,
     postType: selectedFormat === "all" ? undefined : selectedFormat,
     searchTerm: searchTerm.trim() || undefined,
+    convictionTier: selectedTier === "all" ? undefined : selectedTier,
+    isEvergreen: isEvergreenOnly ? true : undefined,
+    hookType: selectedHook === "all" ? undefined : selectedHook,
     sortBy,
   });
 
@@ -67,61 +85,89 @@ export default function ContentExplorerPage() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)] pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-            Content Explorer
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
+              Content Explorer
+            </h1>
+            <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/30 bg-purple-500/10 px-2.5 py-0.5 text-xs font-semibold text-purple-400">
+              <Sparkles className="h-3 w-3" />
+              <span>PIEI Impact Engine</span>
+            </span>
+          </div>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Every published post across connected platforms. Drill down from aggregate statistics to individual records.
+            Every published post measured by public-interest conviction, evidence archiving, and staying power.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
+          {/* Dual View Toggle (Pillar 3) */}
           <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--background)] p-1">
             <button
-              onClick={() => setViewMode("table")}
-              className={`rounded p-1.5 transition-colors ${
-                viewMode === "table"
-                  ? "bg-[var(--muted)] text-[var(--foreground)]"
+              onClick={() => setViewMode("cards")}
+              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                viewMode === "cards"
+                  ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
                   : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               }`}
-              title="Table view"
+              title="Visual Feed Grid View"
             >
-              <List className="h-4 w-4" />
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Feed Grid</span>
             </button>
             <button
-              onClick={() => setViewMode("cards")}
-              className={`rounded p-1.5 transition-colors ${
-                viewMode === "cards"
-                  ? "bg-[var(--muted)] text-[var(--foreground)]"
+              onClick={() => setViewMode("table")}
+              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                viewMode === "table"
+                  ? "bg-[var(--muted)] text-[var(--foreground)] shadow-xs"
                   : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               }`}
-              title="Cards view"
+              title="Power Table View"
             >
-              <LayoutGrid className="h-4 w-4" />
+              <List className="h-3.5 w-3.5" />
+              <span>Power Table</span>
             </button>
           </div>
 
           <button
             onClick={() => setIsConnectModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3.5 py-2 text-xs font-medium text-[var(--primary-foreground)] shadow-xs hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
           >
-            <Plus className="h-4 w-4" />
-            <span>Import Social Content</span>
+            <Plus className="h-3.5 w-3.5" />
+            <span>Connect Channel</span>
           </button>
         </div>
       </div>
 
-      {/* Filter & Search Toolbar (Section 21) */}
+      {/* Universal Quick Ingest Bar (Pillar 3) */}
+      <div className="rounded-2xl border border-[var(--border)] bg-gradient-to-r from-[var(--card)] via-[var(--card)] to-purple-950/10 p-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/15 text-purple-400">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-[var(--foreground)]">
+                Universal Quick Ingest (Zero-Friction Link Paste)
+              </h3>
+              <p className="text-[11px] text-[var(--muted-foreground)]">
+                Paste any link from Instagram, YouTube, X, TikTok, or LinkedIn. Radar normalizes metrics and computes PIEI conviction in seconds.
+              </p>
+            </div>
+          </div>
+        </div>
+        <QuickPasteBar className="w-full" />
+      </div>
+
+      {/* Multi-Parameter Filter Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
-          <div className="relative min-w-[220px]">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--muted-foreground)]" />
+          <div className="relative min-w-[200px]">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--muted-foreground)]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search captions & titles..."
+              placeholder="Search captions & topics..."
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] py-1.5 pl-8 pr-3 text-xs text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:outline-hidden"
             />
           </div>
@@ -134,9 +180,9 @@ export default function ContentExplorerPage() {
           >
             <option value="all">All Platforms</option>
             <option value="instagram">Instagram</option>
+            <option value="youtube">YouTube</option>
             <option value="linkedin">LinkedIn</option>
             <option value="tiktok">TikTok</option>
-            <option value="youtube">YouTube</option>
             <option value="x">X (Twitter)</option>
           </select>
 
@@ -147,14 +193,52 @@ export default function ContentExplorerPage() {
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--foreground)] focus:outline-hidden"
           >
             <option value="all">All Formats</option>
-            <option value="explainer">Explainer</option>
+            <option value="investigation">Investigation</option>
+            <option value="carousel">Carousel</option>
             <option value="video">Video</option>
             <option value="reel">Reel / Short</option>
-            <option value="carousel">Carousel</option>
-            <option value="investigation">Investigation</option>
-            <option value="infographic">Infographic</option>
-            <option value="post">Standard Post</option>
+            <option value="explainer">Explainer</option>
+            <option value="report">Report</option>
           </select>
+
+          {/* Hook Type Filter (Micro-Taxonomy) */}
+          <select
+            value={selectedHook}
+            onChange={(e) => setSelectedHook(e.target.value)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--foreground)] focus:outline-hidden"
+          >
+            <option value="all">All Hook Types</option>
+            <option value="document_scan">📑 Leaked Record / Scan</option>
+            <option value="shock_statistic">📊 Shock Statistic</option>
+            <option value="open_question">❓ Open Question</option>
+            <option value="direct_quote">💬 Direct Quote</option>
+            <option value="breaking_news">🚨 Breaking News</option>
+          </select>
+
+          {/* Conviction Tier Filter */}
+          <select
+            value={selectedTier}
+            onChange={(e) => setSelectedTier(e.target.value)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--foreground)] focus:outline-hidden"
+          >
+            <option value="all">All Conviction Tiers</option>
+            <option value="exceptional">Top 5% Conviction (PIEI ≥ 25)</option>
+            <option value="high">High Conviction (PIEI ≥ 12)</option>
+            <option value="moderate">Moderate Conviction (PIEI ≥ 5)</option>
+          </select>
+
+          {/* Evergreen Only Toggle */}
+          <button
+            onClick={() => setIsEvergreenOnly(!isEvergreenOnly)}
+            className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              isEvergreenOnly
+                ? "border-emerald-500 bg-emerald-500/15 text-emerald-400"
+                : "border-[var(--border)] bg-[var(--background)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <TreePine className="h-3.5 w-3.5" />
+            <span>Evergreen (14d+ Tail)</span>
+          </button>
         </div>
 
         {/* Sort Dropdown */}
@@ -163,20 +247,20 @@ export default function ContentExplorerPage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs text-[var(--foreground)] focus:outline-hidden"
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2.5 py-1.5 text-xs font-medium text-[var(--foreground)] focus:outline-hidden"
           >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="views">Most Viewed</option>
-            <option value="shares">Most Shared</option>
-            <option value="comments">Most Commented</option>
-            <option value="saves">Most Saved</option>
-            <option value="engagementRate">Highest Engagement</option>
+            <option value="pieiScore">⚡ Public-Interest Impact (PIEI)</option>
+            <option value="saves">📥 Most Saved (Evidence Archiving)</option>
+            <option value="shares">📣 Most Shared (Amplification)</option>
+            <option value="views">👁️ Most Viewed</option>
+            <option value="engagementRate">📈 Engagement Rate</option>
+            <option value="newest">🕒 Newest First</option>
+            <option value="oldest">⏳ Oldest First</option>
           </select>
         </div>
       </div>
 
-      {/* Content Register Display */}
+      {/* Content Display */}
       {posts === undefined ? (
         <div className="flex h-64 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card)] text-xs text-[var(--muted-foreground)]">
           Loading content repository...
@@ -184,34 +268,164 @@ export default function ContentExplorerPage() {
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--card)] p-12 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--muted)] text-[var(--muted-foreground)] mb-3">
-            <Share2 className="h-6 w-6" />
+            <Filter className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-semibold text-[var(--foreground)]">No posts found</h3>
+          <h3 className="text-base font-semibold text-[var(--foreground)]">No matching posts found</h3>
           <p className="mt-1 max-w-sm text-xs text-[var(--muted-foreground)]">
-            Connect an organization account or import historical social content to analyze post-level intelligence.
+            Try adjusting your platform, hook type, or conviction tier filters, or paste a new URL above to analyze.
           </p>
-          <button
-            onClick={() => setIsConnectModalOpen(true)}
-            className="mt-4 flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2 text-xs font-medium text-[var(--primary-foreground)] shadow-xs hover:opacity-90"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Connect Account & Import Posts</span>
-          </button>
         </div>
-      ) : viewMode === "table" ? (
-        /* Table View (Section 20) */
+      ) : viewMode === "cards" ? (
+        /* Visual Feed Grid View (Pillar 3 & Pillar 1) */
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post) => (
+            <div
+              key={post._id}
+              className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-xs hover:border-purple-500/40 hover:shadow-md transition-all"
+            >
+              <div>
+                {/* Media Header Banner */}
+                <div className="relative aspect-video w-full bg-gradient-to-br from-[var(--muted)] via-[var(--card)] to-[var(--muted)] border-b border-[var(--border)] flex items-center justify-center p-4">
+                  {/* Platform & Date Overlay */}
+                  <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-[var(--background)]/85 backdrop-blur-xs border border-[var(--border)] px-2.5 py-1 text-[11px] shadow-xs">
+                    {getPlatformIcon(post.platform)}
+                    <span className="font-semibold text-[var(--foreground)]">
+                      {post.accountHandle ? `@${post.accountHandle}` : post.platform}
+                    </span>
+                  </div>
+
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    {post.isEvergreen && <EvergreenBadge isEvergreen={true} />}
+                  </div>
+
+                  {/* Visual Center Preview / Topic Badge */}
+                  <div className="text-center px-4">
+                    <span className="inline-block rounded-lg bg-[var(--background)]/80 backdrop-blur-xs border border-[var(--border)] px-3 py-1.5 text-xs font-bold text-[var(--foreground)] shadow-xs">
+                      {post.analysis?.primaryTopic || post.postType || "Public Interest Report"}
+                    </span>
+                  </div>
+
+                  {/* PIEI Floating Score Badge */}
+                  <div className="absolute bottom-3 left-3">
+                    <PieiBadge
+                      score={post.pieiScore}
+                      basis={post.pieiBasis || "reach"}
+                      tier={post.convictionTier}
+                      size="md"
+                    />
+                  </div>
+
+                  <div className="absolute bottom-3 right-3">
+                    <span className="rounded-md bg-[var(--background)]/85 px-2 py-0.5 text-[10px] text-[var(--muted-foreground)] border border-[var(--border)]">
+                      {new Date(post.publishedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content Details */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ConvictionPill
+                      tier={post.convictionTier}
+                      saves={post.saves}
+                      shares={post.shares}
+                    />
+                  </div>
+
+                  <Link
+                    href={`/${organizationSlug}/content/${post._id}`}
+                    className="font-semibold text-sm text-[var(--foreground)] hover:text-purple-400 transition-colors line-clamp-2 block leading-snug"
+                  >
+                    {post.title || post.caption || "Untitled post"}
+                  </Link>
+
+                  <p className="text-xs text-[var(--muted-foreground)] line-clamp-2 leading-relaxed">
+                    {post.caption || "No text excerpt available."}
+                  </p>
+
+                  {/* Micro-Taxonomy Badges */}
+                  <div className="pt-1">
+                    <MicroTaxonomyPill
+                      hookType={post.analysis?.hookType}
+                      ctaType={post.analysis?.ctaType}
+                      slideBracket={post.analysis?.slideBracket}
+                      videoLengthBracket={post.analysis?.videoLengthBracket}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* High-Conviction Metrics Strip */}
+              <div className="border-t border-[var(--border)] bg-[var(--muted)]/20 p-3.5">
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div>
+                    <div className="text-[10px] text-[var(--muted-foreground)]">Views</div>
+                    <div className="font-semibold text-[var(--foreground)] font-mono">
+                      {formatNumber(post.views)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-purple-400 font-medium">Saves (5x)</div>
+                    <div className="font-semibold text-purple-400 font-mono flex items-center justify-center gap-0.5">
+                      <Bookmark className="h-2.5 w-2.5" />
+                      <span>{formatNumber(post.saves)}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-emerald-400 font-medium">Shares (3x)</div>
+                    <div className="font-semibold text-emerald-400 font-mono flex items-center justify-center gap-0.5">
+                      <Share2 className="h-2.5 w-2.5" />
+                      <span>{formatNumber(post.shares)}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--muted-foreground)]">Std. ER</div>
+                    <div className="font-semibold text-[var(--foreground)] font-mono">
+                      {formatPercent(post.engagementRate)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Action Links */}
+                <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-[var(--border)]/60 text-xs">
+                  <Link
+                    href={`/${organizationSlug}/content/${post._id}`}
+                    className="font-medium text-purple-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>Post Intelligence</span>
+                    <TrendingUp className="h-3 w-3" />
+                  </Link>
+
+                  <a
+                    href={post.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-1 transition-colors"
+                  >
+                    <span>Original</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Power Table View (Pillar 3 & Pillar 1) */
         <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xs">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-[var(--border)] bg-[var(--muted)]/50 text-[var(--muted-foreground)] uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="px-4 py-3 font-semibold">Post Details</th>
-                <th className="px-4 py-3 font-semibold">Format & Topic</th>
+                <th className="px-3 py-3 font-semibold">Micro-Taxonomy</th>
                 <th className="px-3 py-3 font-semibold text-right">Views</th>
-                <th className="px-3 py-3 font-semibold text-right">Likes</th>
-                <th className="px-3 py-3 font-semibold text-right">Comments</th>
-                <th className="px-3 py-3 font-semibold text-right">Shares</th>
-                <th className="px-3 py-3 font-semibold text-right">Saves</th>
-                <th className="px-4 py-3 font-semibold text-right">Engagement</th>
+                <th className="px-3 py-3 font-semibold text-right">Likes (1x)</th>
+                <th className="px-3 py-3 font-semibold text-right">Comments (2x)</th>
+                <th className="px-3 py-3 font-semibold text-right text-emerald-400">Shares (3x)</th>
+                <th className="px-3 py-3 font-semibold text-right text-purple-400">Saves (5x)</th>
+                <th className="px-3 py-3 font-semibold text-right">Std ER</th>
+                <th className="px-4 py-3 font-semibold text-right text-purple-400">PIEI Score</th>
+                <th className="px-3 py-3 font-semibold text-center">Status</th>
                 <th className="px-3 py-3 font-semibold text-center">Open</th>
               </tr>
             </thead>
@@ -239,17 +453,11 @@ export default function ContentExplorerPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex flex-col gap-1 items-start">
-                      <span className="inline-flex items-center rounded-md border border-[var(--border)] bg-[var(--muted)]/60 px-2 py-0.5 text-[10px] font-medium text-[var(--foreground)] capitalize">
-                        {post.postType || "post"}
-                      </span>
-                      {post.analysis?.primaryTopic && (
-                        <span className="text-[11px] text-[var(--muted-foreground)] truncate max-w-[140px]">
-                          {post.analysis.primaryTopic}
-                        </span>
-                      )}
-                    </div>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    <MicroTaxonomyPill
+                      hookType={post.analysis?.hookType}
+                      ctaType={post.analysis?.ctaType}
+                    />
                   </td>
                   <td className="px-3 py-3 text-right font-medium text-[var(--foreground)] font-mono">
                     {formatNumber(post.views)}
@@ -260,23 +468,28 @@ export default function ContentExplorerPage() {
                   <td className="px-3 py-3 text-right text-[var(--muted-foreground)] font-mono">
                     {formatNumber(post.comments)}
                   </td>
-                  <td className="px-3 py-3 text-right text-[var(--muted-foreground)] font-mono font-medium text-emerald-500">
+                  <td className="px-3 py-3 text-right font-mono font-medium text-emerald-400">
                     {formatNumber(post.shares)}
                   </td>
-                  <td className="px-3 py-3 text-right text-[var(--muted-foreground)] font-mono">
+                  <td className="px-3 py-3 text-right font-mono font-medium text-purple-400">
                     {formatNumber(post.saves)}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-[var(--foreground)] font-mono">
-                    <div className="inline-flex items-center gap-1">
-                      <span>{formatPercent(post.engagementRate)}</span>
-                      {post.engagementRate && post.engagementRate > 0.035 && (
-                        <TrendingUp className="h-3 w-3 text-emerald-500" />
-                      )}
-                    </div>
-                    {post.engagementRateBasis && (
-                      <div className="text-[10px] text-[var(--muted-foreground)]">
-                        /{post.engagementRateBasis}
-                      </div>
+                  <td className="px-3 py-3 text-right text-[var(--muted-foreground)] font-mono">
+                    {formatPercent(post.engagementRate)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    <PieiBadge
+                      score={post.pieiScore}
+                      basis={post.pieiBasis || "reach"}
+                      tier={post.convictionTier}
+                      size="sm"
+                    />
+                  </td>
+                  <td className="px-3 py-3 text-center">
+                    {post.isEvergreen ? (
+                      <EvergreenBadge isEvergreen={true} />
+                    ) : (
+                      <span className="text-[10px] text-[var(--muted-foreground)]">Standard</span>
                     )}
                   </td>
                   <td className="px-3 py-3 text-center">
@@ -303,106 +516,6 @@ export default function ContentExplorerPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      ) : (
-        /* Cards View (Section 20) */
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => (
-            <div
-              key={post._id}
-              className="flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-xs hover:border-[var(--primary)]/50 transition-colors"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="flex items-center gap-2">
-                    {getPlatformIcon(post.platform)}
-                    <span className="text-xs font-semibold text-[var(--foreground)]">
-                      {post.accountHandle ? `@${post.accountHandle}` : post.platform}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-[var(--muted-foreground)]">
-                    {new Date(post.publishedAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                <Link
-                  href={`/${organizationSlug}/content/${post._id}`}
-                  className="font-medium text-sm text-[var(--foreground)] hover:underline line-clamp-2 mb-2 block"
-                >
-                  {post.title || post.caption || "Untitled post"}
-                </Link>
-
-                <p className="text-xs text-[var(--muted-foreground)] line-clamp-3 mb-3">
-                  {post.caption || "No text excerpt available."}
-                </p>
-
-                {/* Tags */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  <span className="inline-flex items-center rounded border border-[var(--border)] bg-[var(--muted)]/50 px-2 py-0.5 text-[10px] font-medium text-[var(--foreground)] capitalize">
-                    {post.postType || "post"}
-                  </span>
-                  {post.analysis?.primaryTopic && (
-                    <span className="inline-flex items-center rounded border border-[var(--border)] bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400">
-                      {post.analysis.primaryTopic}
-                    </span>
-                  )}
-                  {post.analysis?.hookType && (
-                    <span className="inline-flex items-center rounded border border-[var(--border)] bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
-                      Hook: {post.analysis.hookType}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Metrics strip */}
-              <div className="border-t border-[var(--border)] pt-3">
-                <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                  <div>
-                    <div className="text-[10px] text-[var(--muted-foreground)]">Views</div>
-                    <div className="font-semibold text-[var(--foreground)] font-mono">
-                      {formatNumber(post.views)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-[var(--muted-foreground)]">Shares</div>
-                    <div className="font-semibold text-emerald-500 font-mono">
-                      {formatNumber(post.shares)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-[var(--muted-foreground)]">Comments</div>
-                    <div className="font-semibold text-[var(--foreground)] font-mono">
-                      {formatNumber(post.comments)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-[var(--muted-foreground)]">Eng. Rate</div>
-                    <div className="font-semibold text-[var(--foreground)] font-mono">
-                      {formatPercent(post.engagementRate)}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between pt-2 border-t border-[var(--border)]/50">
-                  <Link
-                    href={`/${organizationSlug}/content/${post._id}`}
-                    className="text-xs font-medium text-[var(--primary)] hover:underline flex items-center gap-1"
-                  >
-                    <span>View Intelligence</span>
-                    <TrendingUp className="h-3 w-3" />
-                  </Link>
-                  <a
-                    href={post.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-1"
-                  >
-                    <span>Original</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 

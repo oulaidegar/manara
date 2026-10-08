@@ -177,6 +177,21 @@ export default defineSchema({
     commentRate: v.optional(v.number()),
     saveRate: v.optional(v.number()),
 
+    // Public-Interest Metrics (Pillar 1)
+    pieiScore: v.optional(v.number()), // Public-Interest Engagement Index
+    pieiBasis: v.optional(v.string()), // Denominator basis (reach, impressions, views, interactions)
+    convictionTier: v.optional(
+      v.union(
+        v.literal("exceptional"),
+        v.literal("high"),
+        v.literal("moderate"),
+        v.literal("baseline")
+      )
+    ),
+    isEvergreen: v.optional(v.boolean()), // Sustained engagement > 14 days
+    evergreenScore: v.optional(v.number()),
+    velocityRatio24h: v.optional(v.number()), // % of 7-day views in first 24h
+
     // Benchmarks & percentiles
     viewPercentile: v.optional(v.number()),
     engagementPercentile: v.optional(v.number()),
@@ -272,6 +287,8 @@ export default defineSchema({
     tone: v.optional(v.array(v.string())),
     hookType: v.optional(v.string()),
     ctaType: v.optional(v.string()),
+    slideBracket: v.optional(v.string()),
+    videoLengthBracket: v.optional(v.string()),
     targetAudience: v.optional(v.string()),
     narrativeStyle: v.optional(v.string()),
     containsStatistic: v.optional(v.boolean()),

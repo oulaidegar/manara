@@ -49,6 +49,21 @@ export const upsertSocialPost = mutation({
     commentRate: v.optional(v.number()),
     saveRate: v.optional(v.number()),
 
+    // Public-Interest Metrics (Pillar 1)
+    pieiScore: v.optional(v.number()),
+    pieiBasis: v.optional(v.string()),
+    convictionTier: v.optional(
+      v.union(
+        v.literal("exceptional"),
+        v.literal("high"),
+        v.literal("moderate"),
+        v.literal("baseline")
+      )
+    ),
+    isEvergreen: v.optional(v.boolean()),
+    evergreenScore: v.optional(v.number()),
+    velocityRatio24h: v.optional(v.number()),
+
     provider: v.string(),
     rawProviderData: v.optional(v.any()),
   },
@@ -92,6 +107,12 @@ export const upsertSocialPost = mutation({
         shareRate: args.shareRate ?? existing.shareRate,
         commentRate: args.commentRate ?? existing.commentRate,
         saveRate: args.saveRate ?? existing.saveRate,
+        pieiScore: args.pieiScore ?? existing.pieiScore,
+        pieiBasis: args.pieiBasis ?? existing.pieiBasis,
+        convictionTier: args.convictionTier ?? existing.convictionTier,
+        isEvergreen: args.isEvergreen ?? existing.isEvergreen,
+        evergreenScore: args.evergreenScore ?? existing.evergreenScore,
+        velocityRatio24h: args.velocityRatio24h ?? existing.velocityRatio24h,
         lastMetricsSyncAt: now,
         updatedAt: now,
       });
@@ -130,6 +151,12 @@ export const upsertSocialPost = mutation({
         shareRate: args.shareRate,
         commentRate: args.commentRate,
         saveRate: args.saveRate,
+        pieiScore: args.pieiScore,
+        pieiBasis: args.pieiBasis,
+        convictionTier: args.convictionTier,
+        isEvergreen: args.isEvergreen,
+        evergreenScore: args.evergreenScore,
+        velocityRatio24h: args.velocityRatio24h,
         analysisStatus: "pending",
         lastMetricsSyncAt: now,
         provider: args.provider,
@@ -321,9 +348,13 @@ export const listSocialPosts = query({
         v.literal("comments"),
         v.literal("saves"),
         v.literal("engagementRate"),
-        v.literal("performanceScore")
+        v.literal("performanceScore"),
+        v.literal("pieiScore")
       )
     ),
+    convictionTier: v.optional(v.string()),
+    isEvergreen: v.optional(v.boolean()),
+    hookType: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -359,6 +390,16 @@ export const listSocialPosts = query({
       posts = posts.filter((p) => (p.engagementRate ?? 0) >= args.minEngagementRate!);
     }
 
+    // Filter by convictionTier (Pillar 1)
+    if (args.convictionTier && args.convictionTier !== "all") {
+      posts = posts.filter((p) => p.convictionTier === args.convictionTier);
+    }
+
+    // Filter by isEvergreen (Pillar 1)
+    if (args.isEvergreen) {
+      posts = posts.filter((p) => p.isEvergreen === true);
+    }
+
     // Search term in title or caption
     if (args.searchTerm && args.searchTerm.trim() !== "") {
       const query = args.searchTerm.toLowerCase();
@@ -369,7 +410,7 @@ export const listSocialPosts = query({
       );
     }
 
-    // Sorting (Section 21)
+    // Sorting (Section 21 & Pillar 1)
     const sortBy = args.sortBy ?? "newest";
     posts.sort((a, b) => {
       switch (sortBy) {
@@ -391,6 +432,8 @@ export const listSocialPosts = query({
           return (b.engagementRate ?? 0) - (a.engagementRate ?? 0);
         case "performanceScore":
           return (b.performanceScore ?? 0) - (a.performanceScore ?? 0);
+        case "pieiScore":
+          return (b.pieiScore ?? 0) - (a.pieiScore ?? 0);
         default:
           return b.publishedAt - a.publishedAt;
       }
@@ -413,7 +456,7 @@ export const listSocialPosts = query({
       .collect();
     const analysisMap = new Map(analyses.map((a) => [a.postId, a]));
 
-    const enriched = posts.map((post) => {
+    let enriched = posts.map((post) => {
       const account = accountMap.get(post.accountId);
       const analysis = analysisMap.get(post._id) ?? null;
 
@@ -424,6 +467,11 @@ export const listSocialPosts = query({
         analysis,
       };
     });
+
+    // Filter by micro-taxonomy hookType if specified
+    if (args.hookType && args.hookType !== "all") {
+      enriched = enriched.filter((p) => p.analysis?.hookType === args.hookType);
+    }
 
     return enriched;
   },

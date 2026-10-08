@@ -14,11 +14,16 @@ export type ContentPurpose =
 
 export type HookType =
   | "statistic"
+  | "shock_statistic"
   | "question"
+  | "open_question"
   | "strong_claim"
   | "breaking_news"
   | "personal_story"
   | "quote"
+  | "direct_quote"
+  | "document_scan"
+  | "leaked_record"
   | "visual_hook"
   | "announcement"
   | "none"
@@ -26,10 +31,13 @@ export type HookType =
 
 export type CtaType =
   | "read"
+  | "read_investigation"
   | "share"
   | "comment"
   | "donate"
   | "sign"
+  | "sign_petition"
+  | "archive_save"
   | "register"
   | "attend"
   | "download"
@@ -53,6 +61,8 @@ export interface PostContentAnalysisResult {
   tone: string[];
   hookType: HookType;
   ctaType: CtaType;
+  slideBracket?: string;
+  videoLengthBracket?: string;
   targetAudience: string;
   narrativeStyle: string;
   containsStatistic: boolean;
