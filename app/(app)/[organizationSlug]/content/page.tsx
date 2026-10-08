@@ -28,6 +28,7 @@ import {
   EvergreenBadge,
   MicroTaxonomyPill,
 } from "@/components/social/insight-pill";
+import { CampaignAutoSuggestBanner } from "@/components/campaigns/campaign-auto-suggest-banner";
 
 type SortOption =
   | "pieiScore"
@@ -156,6 +157,9 @@ export default function ContentExplorerPage() {
         </div>
         <QuickPasteBar className="w-full" />
       </div>
+
+      {/* Smart AI Campaign Auto-Suggestions (Pillar 3) */}
+      <CampaignAutoSuggestBanner organizationSlug={organizationSlug} />
 
       {/* Multi-Parameter Filter Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">

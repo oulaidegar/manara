@@ -26,6 +26,7 @@ import { DonorDossierModal } from "@/components/reports/donor-dossier-modal";
 import { ReportViewer } from "@/components/reports/report-viewer";
 import { NarrativeRippleTimeline, TimelinePost } from "@/components/campaigns/narrative-ripple-timeline";
 import { HypothesisTester } from "@/components/campaigns/hypothesis-tester";
+import { CampaignAutoSuggestBanner } from "@/components/campaigns/campaign-auto-suggest-banner";
 
 interface CampaignDetailPageProps {
   params: Promise<{
@@ -350,6 +351,9 @@ export default function CampaignDetailPage({ params }: CampaignDetailPageProps) 
           </span>
         </button>
       </div>
+
+      {/* Smart AI Campaign Auto-Suggestions (Pillar 3) */}
+      <CampaignAutoSuggestBanner campaignId={campaignId} organizationSlug={organizationSlug} />
 
       {/* Tab: Narrative Ripple Flow */}
       {activeTab === "ripple" && (

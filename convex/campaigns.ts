@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Doc } from "./_generated/dataModel";
 import { requireOrganizationMember, requireOrganizationRole } from "./lib/auth";
 import { NotFoundError } from "./lib/errors";
 
@@ -373,5 +374,266 @@ export const linkPostToCampaign = mutation({
     });
 
     return linkId;
+  },
+});
+
+export function tokenize(text: string): Set<string> {
+  const stopWords = new Set([
+    "the", "and", "or", "to", "in", "a", "of", "for", "with", "on", "at", "by", "from",
+    "about", "into", "through", "during", "before", "after", "above", "below", "between",
+    "this", "that", "these", "those", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "can", "could", "will", "would", "shall", "should"
+  ]);
+  const tokens = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !stopWords.has(w));
+  return new Set(tokens);
+}
+
+export function computeTopicSimilarity(
+  postContent: {
+    title?: string;
+    caption?: string;
+    primaryTopic?: string;
+    topics?: string[];
+    campaignCandidate?: string;
+    hashtags?: string[];
+  },
+  campaign: {
+    name: string;
+    description?: string;
+    objectives?: string[];
+  }
+): { score: number; reason: string } {
+  // 1. Direct campaign candidate match (highest confidence)
+  if (
+    postContent.campaignCandidate &&
+    (postContent.campaignCandidate.toLowerCase().includes(campaign.name.toLowerCase()) ||
+      campaign.name.toLowerCase().includes(postContent.campaignCandidate.toLowerCase()))
+  ) {
+    return { score: 0.95, reason: `Targeted candidate for "${campaign.name}"` };
+  }
+
+  // 2. Topic direct match
+  const campaignNameTokens = tokenize(campaign.name);
+  const postTopics = [
+    ...(postContent.primaryTopic ? [postContent.primaryTopic] : []),
+    ...(postContent.topics || []),
+  ].map((t) => t.toLowerCase());
+
+  for (const topic of postTopics) {
+    for (const token of campaignNameTokens) {
+      if (token.length >= 4 && topic.includes(token)) {
+        return {
+          score: 0.85,
+          reason: `Matches campaign theme "${postContent.primaryTopic || topic}"`,
+        };
+      }
+    }
+  }
+
+  // 3. Keyword / token overlap between caption & campaign objectives
+  const campaignFullText = `${campaign.name} ${campaign.description ?? ""} ${(campaign.objectives ?? []).join(" ")}`;
+  const campTokens = tokenize(campaignFullText);
+
+  const postFullText = `${postContent.title ?? ""} ${postContent.caption ?? ""} ${(postContent.hashtags ?? []).join(" ")}`;
+  const postTokens = tokenize(postFullText);
+
+  if (campTokens.size === 0 || postTokens.size === 0) {
+    return { score: 0, reason: "No tokens" };
+  }
+
+  let intersectionCount = 0;
+  const matchedWords: string[] = [];
+  for (const token of postTokens) {
+    if (campTokens.has(token)) {
+      intersectionCount++;
+      if (matchedWords.length < 3) matchedWords.push(token);
+    }
+  }
+
+  if (intersectionCount >= 2) {
+    const score = Math.min(0.8, 0.45 + intersectionCount * 0.1);
+    return {
+      score: Number(score.toFixed(2)),
+      reason: `Shared key subjects (${matchedWords.join(", ")})`,
+    };
+  }
+
+  return { score: 0, reason: "Insufficient match" };
+}
+
+export const getCampaignAutoSuggestions = query({
+  args: {
+    organizationId: v.id("organizations"),
+    campaignId: v.optional(v.id("campaigns")),
+  },
+  handler: async (ctx, args) => {
+    await requireOrganizationMember(ctx, args.organizationId);
+
+    // Fetch campaigns
+    let campaignsToScan: Doc<"campaigns">[] = [];
+
+    if (args.campaignId) {
+      const camp = await ctx.db.get(args.campaignId);
+      if (camp && camp.organizationId === args.organizationId) {
+        campaignsToScan = [camp];
+      }
+    } else {
+      const allCampaigns = await ctx.db
+        .query("campaigns")
+        .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+        .collect();
+      // Scan active and planning campaigns
+      campaignsToScan = allCampaigns.filter((c) => c.status !== "completed");
+    }
+
+    if (campaignsToScan.length === 0) return [];
+
+    // Fetch existing campaign links to prevent suggesting already-linked posts
+    const allLinks = await ctx.db
+      .query("campaignContent")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .collect();
+
+    const linkedSet = new Set(allLinks.map((l) => `${l.campaignId}:${l.postId}`));
+
+    // Fetch posts
+    const posts = await ctx.db
+      .query("socialPosts")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .order("desc")
+      .take(120);
+
+    if (posts.length === 0) return [];
+
+    // Fetch post analyses
+    const analyses = await ctx.db
+      .query("postAnalysis")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .collect();
+
+    const analysisMap = new Map<string, (typeof analyses)[0]>();
+    for (const an of analyses) {
+      analysisMap.set(an.postId, an);
+    }
+
+    const suggestionGroups = [];
+
+    for (const campaign of campaignsToScan) {
+      const matchedPosts = [];
+
+      for (const post of posts) {
+        const linkKey = `${campaign._id}:${post._id}`;
+        if (linkedSet.has(linkKey)) continue;
+
+        const analysis = analysisMap.get(post._id);
+        const match = computeTopicSimilarity(
+          {
+            title: post.title,
+            caption: post.caption,
+            primaryTopic: analysis?.primaryTopic,
+            topics: analysis?.topics,
+            campaignCandidate: analysis?.campaignCandidate,
+          },
+          {
+            name: campaign.name,
+            description: campaign.description,
+            objectives: campaign.objectives,
+          }
+        );
+
+        if (match.score >= 0.55) {
+          matchedPosts.push({
+            post,
+            analysis,
+            score: match.score,
+            reason: match.reason,
+          });
+        }
+      }
+
+      if (matchedPosts.length > 0) {
+        matchedPosts.sort((a, b) => b.score - a.score);
+        suggestionGroups.push({
+          campaignId: campaign._id,
+          campaignName: campaign.name,
+          matchedReason: matchedPosts[0].reason,
+          confidence: matchedPosts[0].score,
+          posts: matchedPosts.slice(0, 5).map(({ post, analysis, reason }) => ({
+            _id: post._id,
+            title: post.title,
+            caption: post.caption,
+            platform: post.platform,
+            postType: post.postType,
+            publishedAt: post.publishedAt,
+            views: post.views,
+            saves: post.saves,
+            shares: post.shares,
+            pieiScore: post.pieiScore,
+            convictionTier: post.convictionTier,
+            primaryTopic: analysis?.primaryTopic,
+            matchReason: reason,
+          })),
+        });
+      }
+    }
+
+    return suggestionGroups.slice(0, 3);
+  },
+});
+
+export const batchLinkPostsToCampaign = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    campaignId: v.id("campaigns"),
+    postIds: v.array(v.id("socialPosts")),
+    associationType: v.optional(
+      v.union(
+        v.literal("manual"),
+        v.literal("ai_suggested"),
+        v.literal("rule_based")
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireOrganizationRole(ctx, args.organizationId, [
+      "owner",
+      "admin",
+      "analyst",
+      "contributor",
+    ]);
+
+    const campaign = await ctx.db.get(args.campaignId);
+    if (!campaign || campaign.organizationId !== args.organizationId) {
+      throw new NotFoundError("Campaign", args.campaignId);
+    }
+
+    let linkedCount = 0;
+    const now = Date.now();
+
+    for (const postId of args.postIds) {
+      const existing = await ctx.db
+        .query("campaignContent")
+        .withIndex("by_post", (q) => q.eq("postId", postId))
+        .filter((q) => q.eq(q.field("campaignId"), args.campaignId))
+        .first();
+
+      if (!existing) {
+        await ctx.db.insert("campaignContent", {
+          organizationId: args.organizationId,
+          campaignId: args.campaignId,
+          postId,
+          associationType: args.associationType ?? "ai_suggested",
+          confidence: 0.85,
+          createdAt: now,
+        });
+        linkedCount++;
+      }
+    }
+
+    return { linkedCount, campaignId: args.campaignId };
   },
 });
