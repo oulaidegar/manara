@@ -54,8 +54,17 @@ export const connectGA4Property = mutation({
     propertyId: v.string(), // e.g. "314159265"
     displayName: v.string(), // e.g. "Daraj Media Main Site"
     websiteUrl: v.string(), // e.g. "https://daraj.media"
-    credentialsType: v.union(v.literal("service_account"), v.literal("demo_sandbox")),
+    credentialsType: v.union(
+      v.literal("service_account"),
+      v.literal("demo_sandbox"),
+      v.literal("oauth_google")
+    ),
     serviceAccountEmail: v.optional(v.string()),
+    googleUserEmail: v.optional(v.string()),
+    googleAccountName: v.optional(v.string()),
+    refreshToken: v.optional(v.string()),
+    accessToken: v.optional(v.string()),
+    tokenExpiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireOrganizationRole(ctx, args.organizationId, [
@@ -83,6 +92,11 @@ export const connectGA4Property = mutation({
         websiteUrl: args.websiteUrl,
         credentialsType: args.credentialsType,
         serviceAccountEmail: args.serviceAccountEmail,
+        googleUserEmail: args.googleUserEmail,
+        googleAccountName: args.googleAccountName,
+        refreshToken: args.refreshToken,
+        accessToken: args.accessToken,
+        tokenExpiresAt: args.tokenExpiresAt,
         syncEnabled: true,
         status: "connected",
         lastSyncedAt: now,
@@ -96,6 +110,11 @@ export const connectGA4Property = mutation({
         websiteUrl: args.websiteUrl,
         credentialsType: args.credentialsType,
         serviceAccountEmail: args.serviceAccountEmail,
+        googleUserEmail: args.googleUserEmail,
+        googleAccountName: args.googleAccountName,
+        refreshToken: args.refreshToken,
+        accessToken: args.accessToken,
+        tokenExpiresAt: args.tokenExpiresAt,
         syncEnabled: true,
         status: "connected",
         lastSyncedAt: now,

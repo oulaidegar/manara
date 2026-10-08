@@ -444,8 +444,17 @@ export default defineSchema({
     propertyId: v.string(), // e.g. "314159265"
     displayName: v.string(), // e.g. "Daraj Media Main Site"
     websiteUrl: v.string(), // e.g. "https://daraj.media"
-    credentialsType: v.union(v.literal("service_account"), v.literal("demo_sandbox")),
+    credentialsType: v.union(
+      v.literal("service_account"),
+      v.literal("demo_sandbox"),
+      v.literal("oauth_google")
+    ),
     serviceAccountEmail: v.optional(v.string()),
+    googleUserEmail: v.optional(v.string()),
+    googleAccountName: v.optional(v.string()),
+    refreshToken: v.optional(v.string()),
+    accessToken: v.optional(v.string()),
+    tokenExpiresAt: v.optional(v.number()),
     syncEnabled: v.boolean(),
     lastSyncedAt: v.optional(v.number()),
     status: v.union(v.literal("connected"), v.literal("disconnected"), v.literal("error")),

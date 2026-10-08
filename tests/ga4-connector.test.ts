@@ -135,4 +135,47 @@ describe("Pillar 2: Google Analytics 4 (GA4) & Social-to-Web Attribution Bridge"
       expect(channelUsers["google"]).toBe(12440);
     });
   });
+
+  describe("Google Analytics 4 OAuth 2.0 Integration", () => {
+    it("generates compliant Google OAuth 2.0 authorization URL with analytics.readonly scope", async () => {
+      const { getGoogleAuthUrl } = await import("../lib/analytics/google-oauth");
+
+      const authUrl = getGoogleAuthUrl({
+        organizationId: "org_123",
+        redirectUri: "http://localhost:3000/api/auth/google/callback",
+        returnUrl: "/daraj/content",
+      });
+
+      const parsed = new URL(authUrl);
+      expect(parsed.hostname).toBe("accounts.google.com");
+      expect(parsed.pathname).toBe("/o/oauth2/v2/auth");
+      expect(parsed.searchParams.get("response_type")).toBe("code");
+      expect(parsed.searchParams.get("access_type")).toBe("offline");
+      expect(parsed.searchParams.get("prompt")).toBe("consent");
+      expect(parsed.searchParams.get("scope")).toContain("https://www.googleapis.com/auth/analytics.readonly");
+      expect(parsed.searchParams.get("scope")).toContain("email");
+
+      // Verify decoded state
+      const statePayload = JSON.parse(
+        Buffer.from(parsed.searchParams.get("state")!, "base64url").toString()
+      );
+      expect(statePayload.orgId).toBe("org_123");
+      expect(statePayload.returnUrl).toBe("/daraj/content");
+    });
+
+    it("provides mock civil society properties and user profile for sandbox mode", async () => {
+      const { getMockDiscoveredProperties, getMockGoogleUser } = await import(
+        "../lib/analytics/google-oauth"
+      );
+
+      const properties = getMockDiscoveredProperties();
+      expect(properties.length).toBeGreaterThanOrEqual(3);
+      expect(properties[0].propertyId).toBe("314159265");
+      expect(properties[0].displayName).toContain("Daraj Media");
+
+      const user = getMockGoogleUser();
+      expect(user.email).toBe("editor@darajmedia.org");
+    });
+  });
 });
+
