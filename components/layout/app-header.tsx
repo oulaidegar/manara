@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { QuickPasteBar } from "@/components/social/quick-paste-bar";
+import { useAutoSync } from "@/lib/social/use-auto-sync";
 
 type AppHeaderProps = {
   onMenuClick?: () => void;
@@ -19,8 +20,11 @@ type AppHeaderProps = {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const pathname = usePathname();
-  const { organizationName, organizationSlug, userRole } = useOrganization();
+  const { organization, organizationName, organizationSlug, userRole } = useOrganization();
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Keep channels fresh in background out of the box
+  useAutoSync(organization._id);
 
   // Derive breadcrumb / title from pathname
   const segments = pathname.split("/").filter(Boolean);

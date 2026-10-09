@@ -21,6 +21,7 @@ import {
   Globe,
 } from "lucide-react";
 import { ConnectAccountModal } from "@/components/social/connect-account-modal";
+import { ChannelSyncBar } from "@/components/social/channel-sync-bar";
 import { PlatformIcon } from "@/components/social/platform-icon";
 import { QuickPasteBar } from "@/components/social/quick-paste-bar";
 import {
@@ -141,6 +142,9 @@ export default function ContentExplorerPage() {
           </button>
         </div>
       </div>
+
+      {/* Turnkey Channel Hub & Sync Status Bar */}
+      <ChannelSyncBar />
 
       {/* Domain Navigation Bar: Social vs Web Readership (Pillar 2) */}
       <div className="flex border-b border-[var(--border)] gap-2 overflow-x-auto pb-0.5 text-xs sm:text-sm font-semibold">

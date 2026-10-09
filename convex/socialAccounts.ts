@@ -176,3 +176,36 @@ export const disconnectSocialAccount = mutation({
     return true;
   },
 });
+
+export const updateSyncTimestamp = mutation({
+  args: {
+    organizationId: v.id("organizations"),
+    accountId: v.id("socialAccounts"),
+    lastSyncedAt: v.number(),
+    followerCount: v.optional(v.number()),
+    followingCount: v.optional(v.number()),
+    totalPosts: v.optional(v.number()),
+    displayName: v.optional(v.string()),
+    profileImageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireOrganizationMember(ctx, args.organizationId);
+    const account = await ctx.db.get(args.accountId);
+    if (!account || account.organizationId !== args.organizationId) {
+      throw new NotFoundError("SocialAccount", args.accountId);
+    }
+
+    await ctx.db.patch(args.accountId, {
+      lastSyncedAt: args.lastSyncedAt,
+      followerCount: args.followerCount ?? account.followerCount,
+      followingCount: args.followingCount ?? account.followingCount,
+      totalPosts: args.totalPosts ?? account.totalPosts,
+      displayName: args.displayName ?? account.displayName,
+      profileImageUrl: args.profileImageUrl ?? account.profileImageUrl,
+      updatedAt: Date.now(),
+    });
+
+    return true;
+  },
+});
+

@@ -21,6 +21,7 @@ import {
 import { useState } from "react";
 import { OverviewTrendChart } from "@/components/charts/overview-trend-chart";
 import { PlatformDonutChart } from "@/components/charts/platform-donut-chart";
+import { ChannelSyncBar } from "@/components/social/channel-sync-bar";
 
 export default function OrganizationHomePage() {
   const { organization, organizationId, organizationName, organizationSlug, userRole } =
@@ -119,6 +120,9 @@ export default function OrganizationHomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Turnkey Channel Hub & Sync Status Bar */}
+      <ChannelSyncBar />
 
       {/* Briefing Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

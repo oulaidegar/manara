@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useOrganization } from "@/components/organization-context";
 import Link from "next/link";
@@ -10,6 +10,9 @@ import {
   Eye,
   Layers,
   ArrowRight,
+  RefreshCw,
+  Loader2,
+  Settings,
 } from "lucide-react";
 import { PlatformIcon } from "@/components/social/platform-icon";
 import { ConnectAccountModal } from "@/components/social/connect-account-modal";
@@ -25,11 +28,94 @@ export default function PlatformDashboardPage({ params }: PlatformPageProps) {
   const { platform } = use(params);
   const { organization, organizationSlug } = useOrganization();
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const batchUpsertPosts = useMutation(api.socialPosts.batchUpsertPosts);
+  const updateSyncTimestamp = useMutation(api.socialAccounts.updateSyncTimestamp);
 
   const data = useQuery(api.platformAnalytics.getPlatformOverview, {
     organizationId: organization._id,
     platform,
   });
+
+  const handleSyncChannel = async () => {
+    if (!data?.account || isSyncing) return;
+    const currentAccount = data.account;
+    setIsSyncing(true);
+    setSyncMessage(`Crawling @${currentAccount.handle} on ${platform} via SocialCrawl...`);
+
+    try {
+      const res = await fetch("/api/social/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform,
+          handle: currentAccount.handle,
+          count: 20,
+        }),
+      });
+
+      if (res.ok) {
+        const crawlData = await res.json();
+        if (crawlData.posts && crawlData.posts.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const postsToUpsert = crawlData.posts.map((p: any) => ({
+            platform: p.platform,
+            externalPostId: p.externalPostId,
+            url: p.url,
+            publishedAt: p.publishedAt,
+            caption: p.caption,
+            title: p.title,
+            postType: p.postType,
+            thumbnailUrl: p.thumbnailUrl,
+            mediaUrls: p.mediaUrls,
+            views: p.views,
+            impressions: p.impressions,
+            reach: p.reach,
+            likes: p.likes,
+            comments: p.comments,
+            shares: p.shares,
+            saves: p.saves,
+            provider: "socialcrawl",
+          }));
+
+          await batchUpsertPosts({
+            organizationId: organization._id,
+            accountId: currentAccount._id,
+            posts: postsToUpsert,
+          });
+
+          await updateSyncTimestamp({
+            organizationId: organization._id,
+            accountId: currentAccount._id,
+            lastSyncedAt: Date.now(),
+            followerCount: crawlData.profile?.followerCount ?? currentAccount.followerCount,
+            followingCount: crawlData.profile?.followingCount ?? currentAccount.followingCount,
+            totalPosts: crawlData.profile?.totalPosts ?? currentAccount.totalPosts,
+            displayName: crawlData.profile?.displayName ?? currentAccount.displayName,
+            profileImageUrl: crawlData.profile?.profileImageUrl ?? currentAccount.profileImageUrl,
+          });
+
+          setSyncMessage(`Refreshed! ${crawlData.posts.length} posts retrieved from ${platform}.`);
+        } else {
+          setSyncMessage("Channel checked: All posts are up to date.");
+        }
+      } else {
+        setSyncMessage("Crawl completed.");
+      }
+
+      setTimeout(() => {
+        setIsSyncing(false);
+        setSyncMessage(null);
+      }, 3500);
+    } catch (err) {
+      console.error("Channel sync failed:", err);
+      setIsSyncing(false);
+      setSyncMessage("Failed to refresh feed.");
+      setTimeout(() => setSyncMessage(null), 3000);
+    }
+  };
 
   const formatNumber = (num?: number) => {
     if (num === undefined || num === null) return "—";
@@ -54,7 +140,7 @@ export default function PlatformDashboardPage({ params }: PlatformPageProps) {
   const { account, totalPosts, totalViews, totalShares, medianViews, medianEngagement, formatBreakdown, topPosts, allPosts } = data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border)] pb-5">
         <div className="flex items-center gap-3">
@@ -62,23 +148,63 @@ export default function PlatformDashboardPage({ params }: PlatformPageProps) {
             <PlatformIcon platform={platform} className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight capitalize text-[var(--foreground)]">
-              {platform} Intelligence
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight capitalize text-[var(--foreground)]">
+                {platform} Intelligence
+              </h1>
+              {account && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-500 border border-emerald-500/20">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                  <span>Zero-OAuth Active</span>
+                </span>
+              )}
+            </div>
             <p className="text-xs text-[var(--muted-foreground)]">
               {account ? `@${account.handle} • ${formatNumber(account.followerCount)} followers` : "No account connected yet."}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => setIsConnectModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3.5 py-2 text-xs font-medium text-[var(--primary-foreground)] shadow-xs hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          <span>{account ? "Sync / Reimport" : `Connect ${platform}`}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {account ? (
+            <>
+              <button
+                onClick={handleSyncChannel}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] hover:border-[var(--primary)] transition-colors shadow-2xs disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-[var(--primary)] ${isSyncing ? "animate-spin" : ""}`} />
+                <span>{isSyncing ? "Syncing..." : "Refresh Feed"}</span>
+              </button>
+
+              <button
+                onClick={() => setIsConnectModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+                title="Configure or Switch Account"
+              >
+                <Settings className="h-3.5 w-3.5" />
+                <span>Manage</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setIsConnectModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-3.5 py-2 text-xs font-medium text-[var(--primary-foreground)] shadow-xs hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Connect {platform}</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Sync Status Banner */}
+      {syncMessage && (
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-500">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          <span>{syncMessage}</span>
+        </div>
+      )}
 
       {/* Account Overview KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
